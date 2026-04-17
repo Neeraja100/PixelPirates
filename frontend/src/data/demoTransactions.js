@@ -1,0 +1,17 @@
+export const demoTransactions = [
+  { date: "2026-01-01", description: "Monthly salary credited", amount: 80000, type: "income", category: "Income" },
+  { date: "2026-01-03", description: "Rent payment", amount: 22000, type: "expense", category: "Rent & Housing" },
+  { date: "2026-01-05", description: "Zomato weekend dinner", amount: 1850, type: "expense", category: "Food & Dining" },
+  { date: "2026-01-06", description: "Uber rides", amount: 1200, type: "expense", category: "Transport" },
+  { date: "2026-01-08", description: "SIP investment", amount: 6000, type: "expense", category: "Savings & Investments" },
+  { date: "2026-01-13", description: "Amazon shopping", amount: 5400, type: "expense", category: "Shopping" },
+  { date: "2026-01-20", description: "Netflix and Spotify", amount: 1200, type: "expense", category: "Entertainment" },
+  { date: "2026-01-27", description: "Cafe and movie night", amount: 3300, type: "expense", category: "Entertainment" },
+  { date: "2026-02-01", description: "Monthly salary credited", amount: 80000, type: "income", category: "Income" },
+  { date: "2026-02-03", description: "Rent payment", amount: 22000, type: "expense", category: "Rent & Housing" },
+  { date: "2026-02-08", description: "Weekend restaurants", amount: 6200, type: "expense", category: "Food & Dining" },
+  { date: "2026-02-11", description: "Mobile and internet bill", amount: 2400, type: "expense", category: "Bills & Utilities" },
+  { date: "2026-02-15", description: "Myntra shopping", amount: 7600, type: "expense", category: "Shopping" },
+  { date: "2026-02-22", description: "Pharmacy", amount: 950, type: "expense", category: "Health" },
+  { date: "2026-02-28", description: "Weekend food delivery", amount: 4100, type: "expense", category: "Food & Dining" },
+];

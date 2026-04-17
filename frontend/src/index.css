@@ -1,0 +1,296 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Design System Tokens ─────────────────────────────────────── */
+:root {
+  --bg:               #131313;
+  --surface:          #201f1f;
+  --surface-high:     #2a2a2a;
+  --surface-highest:  #353534;
+  --surface-low:      #1c1b1b;
+  --surface-lowest:   #0e0e0e;
+  --primary:          #dcb8ff;
+  --primary-container:#8a2be2;
+  --secondary:        #bec2ff;
+  --secondary-container: #080cff;
+  --tertiary:         #ffb873;
+  --on-surface:       #e5e2e1;
+  --on-surface-var:   #cfc2d7;
+  --outline:          #988ca0;
+  --outline-var:      #4c4354;
+  --error:            #ffb4ab;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  background-color: var(--bg);
+  color: var(--on-surface);
+  font-family: "Manrope", sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  /* Ambient background glow */
+  background-image:
+    radial-gradient(ellipse 800px 600px at 20% 10%, rgba(138, 43, 226, 0.12) 0%, transparent 70%),
+    radial-gradient(ellipse 600px 500px at 80% 80%, rgba(8, 12, 255, 0.08) 0%, transparent 60%);
+}
+
+button, input, select, textarea {
+  font: inherit;
+}
+
+/* ─── Glassmorphic Card ─────────────────────────────────────────── */
+.glass-card {
+  background: rgba(28, 27, 27, 0.60);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(76, 67, 84, 0.20);
+  border-radius: 16px;
+  padding: 2rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.glass-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(220, 184, 255, 0.03) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+/* ─── Purple glow blob behind key cards ─────────────────────────── */
+.glow-blob {
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: var(--primary-container);
+  filter: blur(120px);
+  opacity: 0.15;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ─── Buttons ───────────────────────────────────────────────────── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.75rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.9375rem;
+  letter-spacing: 0.02em;
+  background: linear-gradient(135deg, var(--primary-container) 0%, var(--secondary-container) 100%);
+  color: var(--primary);
+  transition: opacity 200ms ease, transform 200ms ease, box-shadow 200ms ease;
+  box-shadow: 0 4px 24px rgba(138, 43, 226, 0.35);
+}
+
+.btn-primary:hover:not(:disabled) {
+  opacity: 0.92;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(138, 43, 226, 0.50);
+}
+
+.btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.75rem;
+  border: 1px solid rgba(76, 67, 84, 0.35);
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  background: rgba(42, 42, 42, 0.60);
+  backdrop-filter: blur(12px);
+  color: var(--on-surface);
+  transition: background 200ms ease, transform 200ms ease, border-color 200ms ease;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: rgba(53, 53, 52, 0.80);
+  border-color: rgba(152, 140, 160, 0.45);
+  transform: translateY(-1px);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.75rem;
+  border: 1px solid rgba(255, 180, 171, 0.25);
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  background: rgba(255, 180, 171, 0.08);
+  color: var(--error);
+  transition: background 200ms ease, transform 200ms ease;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: rgba(255, 180, 171, 0.14);
+  transform: translateY(-1px);
+}
+
+.btn-danger:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ─── Form fields ───────────────────────────────────────────────── */
+.field {
+  width: 100%;
+  background: rgba(14, 14, 14, 0.70);
+  border: 1px solid rgba(76, 67, 84, 0.35);
+  border-radius: 8px;
+  color: var(--on-surface);
+  padding: 0.813rem 1rem;
+  outline: none;
+  transition: border-color 200ms ease;
+  font-family: "Inter", sans-serif;
+}
+
+.field:focus {
+  border-color: rgba(220, 184, 255, 0.5);
+  box-shadow: 0 0 0 3px rgba(138, 43, 226, 0.12);
+}
+
+.field::placeholder {
+  color: var(--outline);
+}
+
+.field option {
+  background: var(--surface-high);
+  color: var(--on-surface);
+}
+
+/* ─── Section label (overline style) ───────────────────────────── */
+.overline {
+  font-family: "Inter", sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+/* ─── Metric chip ───────────────────────────────────────────────── */
+.metric-chip {
+  background: var(--surface-high);
+  border: 1px solid rgba(76, 67, 84, 0.20);
+  border-radius: 10px;
+  padding: 1rem;
+}
+
+/* ─── Nav tab ───────────────────────────────────────────────────── */
+.nav-tab {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--on-surface-var);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  transition: color 150ms ease, background 150ms ease;
+  font-family: "Inter", sans-serif;
+}
+
+.nav-tab:hover {
+  color: var(--on-surface);
+  background: rgba(42, 42, 42, 0.6);
+}
+
+.nav-tab.active {
+  color: var(--primary);
+  background: rgba(138, 43, 226, 0.12);
+}
+
+/* ─── Insight item ──────────────────────────────────────────────── */
+.insight-item {
+  background: var(--surface-high);
+  border: 1px solid rgba(76, 67, 84, 0.18);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--on-surface-var);
+  transition: border-color 200ms ease;
+}
+
+.insight-item:hover {
+  border-color: rgba(220, 184, 255, 0.20);
+}
+
+/* ─── Ghost scrollbar ───────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(76, 67, 84, 0.5); border-radius: 3px; }
+
+/* ─── Animated gradient text ────────────────────────────────────── */
+.gradient-text {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Pulsing dot ───────────────────────────────────────────────── */
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--primary-container);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(0.75); }
+}
+
+/* ─── Fade up entrance animation ────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.fade-up {
+  animation: fadeUp 0.5s ease both;
+}
+
+.fade-up-1 { animation-delay: 0.05s; }
+.fade-up-2 { animation-delay: 0.10s; }
+.fade-up-3 { animation-delay: 0.15s; }
+.fade-up-4 { animation-delay: 0.20s; }
+.fade-up-5 { animation-delay: 0.25s; }
