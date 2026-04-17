@@ -1,347 +1,270 @@
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-
-import { formatMoney, percent } from "../utils/formatters.js";
-import TransactionTable from "./TransactionTable.jsx";
-
-const CHART_COLORS = ["#dcb8ff", "#bec2ff", "#ffb873", "#8a2be2", "#080cff"];
-
-const tooltipStyle = {
-  background: "rgba(28,27,27,0.95)",
-  border: "1px solid rgba(76,67,84,0.40)",
-  borderRadius: "8px",
-  backdropFilter: "blur(16px)",
-  color: "#e5e2e1",
-  fontSize: "0.8125rem",
-};
-
-const axisStyle = { stroke: "#4c4354", fontSize: 11, fontFamily: "Inter, sans-serif" };
+import React, { useRef, useEffect, useState } from 'react';
+import { motion, useScroll, useTransform } from 'framer-motion';
+import { Shield, MessageSquare, Menu, FileText, UploadCloud, Mic, X, CheckCircle, Lock } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
+import HeroSection from './dashboard/HeroSection';
+import InputSection from './dashboard/InputSection';
+import AnalyticsSection from './dashboard/AnalyticsSection';
+import InsightsSection from './dashboard/InsightsSection';
+import ActionsSection from './dashboard/ActionsSection';
+import TransactionsSection from './dashboard/TransactionsSection';
 
 export default function Dashboard({
   metrics,
+  transactions,
   personality,
   insights,
   actions,
-  nudge,
-  transactions,
+  loading,
   onGenerate,
   onRefine,
-  onNudge,
   onSaveTransactions,
   onDelete,
-  loading,
+  onAddTransactions,
+  onParseText,
+  onUploadStatement
 }) {
-  const categoryData = Object.entries(metrics?.by_category || {}).map(([name, value]) => ({ name, value }));
-  const monthData = Object.entries(metrics?.by_month || {}).map(([name, value]) => ({ name, value }));
-  const score = personality?.score ?? metrics?.score ?? 0;
+  const containerRef = useRef(null);
+  const { scrollYProgress } = useScroll({ target: containerRef });
+  
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [showManageMenu, setShowManageMenu] = useState(false);
+  const [showSecurityModal, setShowSecurityModal] = useState(false);
 
+  useEffect(() => {
+    const handleScroll = () => {
+      const sections = ["dashboard", "analytics", "insights", "actions", "transactions"];
+      let current = "dashboard";
+      sections.forEach((id) => {
+        const section = document.getElementById(id);
+        if (section) {
+          const rect = section.getBoundingClientRect();
+          // If section top crosses viewport middle
+          if (rect.top <= window.innerHeight / 2) {
+            current = id;
+          }
+        }
+      });
+      setActiveTab(current);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    handleScroll();
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const scrollTo = (id) => {
+    const el = document.getElementById(id);
+    if (el) {
+      const yOffset = -80; // Offset for navbar height
+      const y = el.getBoundingClientRect().top + window.scrollY + yOffset;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    }
+  };
+  
   return (
-    <div className="space-y-5">
-
-      {/* ── Privacy / session banner ── */}
-      <section
-        className="glass-card fade-up"
+    <div ref={containerRef} className="relative min-h-screen bg-[#0e0e0e] text-[#e5e2e1] overflow-hidden" style={{ minHeight: "100vh" }}>
+      
+      {/* Dynamic Ambient Background glow - parallaxing with scroll */}
+      <motion.div 
+        className="pointer-events-none fixed z-0 rounded-full"
         style={{
-          display: "flex",
-          flexWrap: "wrap",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "1rem",
-          padding: "1.5rem 2rem",
+          top: "-10%", left: "-5%", width: "800px", height: "800px",
+          background: "radial-gradient(circle, rgba(138,43,226,0.12) 0%, transparent 60%)",
+          filter: "blur(180px)",
+          y: useTransform(scrollYProgress, [0, 1], [0, 400])
         }}
-      >
-        <div>
-          <p className="overline mb-1">Privacy Layer — Active</p>
-          <h2
-            className="font-manrope"
-            style={{ fontSize: "1.125rem", fontWeight: 700, color: "#e5e2e1" }}
-          >
-            Session-based adaptive analysis
-          </h2>
-          <p style={{ fontSize: "0.875rem", color: "#988ca0", marginTop: "0.25rem" }}>
-            No permanent storage. Session ends → data cleared.
-          </p>
+      />
+      <motion.div 
+        className="pointer-events-none fixed z-0 rounded-full"
+        style={{
+          bottom: "-20%", right: "-10%", width: "900px", height: "900px",
+          background: "radial-gradient(circle, rgba(8,12,255,0.08) 0%, transparent 60%)",
+          filter: "blur(160px)",
+          y: useTransform(scrollYProgress, [0, 1], [0, -300])
+        }}
+      />
+
+      {/* Top Navbar */}
+      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4 bg-black/50 backdrop-blur-xl border-b border-white/[0.05]">
+        <div className="font-manrope font-bold text-xl tracking-wider uppercase bg-clip-text text-transparent bg-gradient-to-r from-purple-300 to-blue-300">
+          The Financial Mirror
         </div>
-        <button className="btn-danger" onClick={onDelete}>
-          🗑 Delete all data
-        </button>
-      </section>
-
-      {/* ── Health score + SWOT ── */}
-      <section className="grid gap-5 lg:grid-cols-[0.85fr_1.15fr] fade-up fade-up-1">
-
-        {/* Score card */}
-        <div
-          className="glass-card"
-          style={{ position: "relative", overflow: "hidden" }}
-        >
-          <div
-            className="pointer-events-none absolute"
-            style={{
-              bottom: "-40px",
-              right: "-40px",
-              width: "200px",
-              height: "200px",
-              borderRadius: "50%",
-              background: "#8a2be2",
-              filter: "blur(80px)",
-              opacity: 0.18,
-            }}
-          />
-          <p className="overline mb-4">Financial Health</p>
-          <div style={{ display: "flex", alignItems: "flex-end", gap: "0.5rem" }}>
-            <span
-              className="gradient-text font-manrope"
-              style={{ fontSize: "5rem", fontWeight: 800, lineHeight: 1 }}
+        
+        <div className="hidden md:flex items-center gap-8">
+          {["dashboard", "analytics", "insights", "actions", "transactions"].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => scrollTo(tab)}
+              className={`font-inter text-sm capitalize transition-all duration-300 ${
+                activeTab === tab 
+                  ? "text-white font-medium drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" 
+                  : "text-[#988ca0] hover:text-[#dcb8ff]"
+              }`}
             >
-              {score}
-            </span>
-            <span style={{ color: "#4c4354", fontSize: "1.5rem", fontWeight: 300, paddingBottom: "0.5rem" }}>/100</span>
-          </div>
-          <h3
-            className="font-manrope mt-4"
-            style={{ fontSize: "1.375rem", fontWeight: 700, color: "#e5e2e1" }}
-          >
-            {personality?.tag || "Analysis pending"}
-          </h3>
-          <p style={{ color: "#988ca0", marginTop: "0.75rem", lineHeight: 1.65, fontSize: "0.9375rem" }}>
-            {personality?.summary || "Generate analysis after adding your transaction data."}
-          </p>
-
-          <div className="grid grid-cols-2 gap-3 mt-6">
-            {[
-              { label: "Income", value: formatMoney(metrics?.income) },
-              { label: "Expenses", value: formatMoney(metrics?.expenses) },
-              { label: "Savings Rate", value: percent(metrics?.savings_rate) },
-              { label: "Discretionary", value: percent(metrics?.discretionary_ratio) },
-            ].map(({ label, value }) => (
-              <div className="metric-chip" key={label} style={{ position: "relative" }}>
-                <p
-                  className="font-inter"
-                  style={{ fontSize: "0.6875rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#988ca0" }}
-                >
-                  {label}
-                </p>
-                <p style={{ fontSize: "1.125rem", fontWeight: 700, color: "#e5e2e1", marginTop: "0.25rem" }}>
-                  {value}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* SWOT */}
-        <div className="glass-card">
-          <p className="overline mb-4">SWOT Assessment</p>
-          <div className="grid gap-3 md:grid-cols-2">
-            {[
-              { key: "strengths",     color: "#dcb8ff", emoji: "💪" },
-              { key: "weaknesses",    color: "#ffb4ab", emoji: "⚠️" },
-              { key: "opportunities", color: "#ffb873", emoji: "🔭" },
-              { key: "threats",       color: "#bec2ff", emoji: "🛡️" },
-            ].map(({ key, color, emoji }) => (
-              <div
-                key={key}
-                style={{
-                  background: "#2a2a2a",
-                  border: "1px solid rgba(76,67,84,0.20)",
-                  borderRadius: "12px",
-                  padding: "1rem 1.25rem",
-                }}
-              >
-                <h4
-                  className="font-manrope"
-                  style={{ fontWeight: 700, fontSize: "0.875rem", color, textTransform: "capitalize", marginBottom: "0.625rem" }}
-                >
-                  {emoji} {key}
-                </h4>
-                <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "0.35rem" }}>
-                  {(personality?.swot?.[key] || ["Generate analysis to view this section."]).map((item) => (
-                    <li key={item} style={{ fontSize: "0.8125rem", color: "#cfc2d7", lineHeight: 1.55 }}>
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Charts ── */}
-      <section className="grid gap-5 lg:grid-cols-2 fade-up fade-up-2">
-        <ChartCard title="Monthly Trend" subtitle="Spending over time">
-          <ResponsiveContainer width="100%" height={240}>
-            <AreaChart data={monthData} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
-              <defs>
-                <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#8a2be2" stopOpacity={0.4} />
-                  <stop offset="100%" stopColor="#8a2be2" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid stroke="rgba(76,67,84,0.25)" strokeDasharray="3 3" />
-              <XAxis dataKey="name" {...axisStyle} />
-              <YAxis {...axisStyle} />
-              <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: "rgba(220,184,255,0.3)" }} />
-              <Area
-                dataKey="value"
-                stroke="#8a2be2"
-                strokeWidth={2}
-                fill="url(#areaGrad)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        <ChartCard title="Category Distribution" subtitle="Where your money flows">
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={categoryData} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
-              <CartesianGrid stroke="rgba(76,67,84,0.25)" strokeDasharray="3 3" />
-              <XAxis dataKey="name" {...axisStyle} />
-              <YAxis {...axisStyle} />
-              <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(138,43,226,0.08)" }} />
-              <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                {categoryData.map((entry, index) => (
-                  <Cell fill={CHART_COLORS[index % CHART_COLORS.length]} key={entry.name} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-      </section>
-
-      {/* ── Insights + Actions ── */}
-      <section className="grid gap-5 lg:grid-cols-2 fade-up fade-up-3">
-
-        {/* AI Insights */}
-        <div className="glass-card">
-          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem", marginBottom: "1.25rem" }}>
-            <div>
-              <p className="overline mb-1">Financial Constellations</p>
-              <h2 className="font-manrope" style={{ fontSize: "1.375rem", fontWeight: 700, color: "#e5e2e1" }}>
-                AI Behavioral Insights
-              </h2>
-            </div>
-            <div style={{ display: "flex", gap: "0.5rem" }}>
-              <button className="btn-secondary" onClick={onGenerate} disabled={loading} style={{ padding: "0.65rem 1.25rem", fontSize: "0.875rem" }}>
-                Generate
-              </button>
-              <button className="btn-primary" onClick={onRefine} disabled={loading} style={{ padding: "0.65rem 1.25rem", fontSize: "0.875rem" }}>
-                Refine
-              </button>
-            </div>
-          </div>
-          <ul style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
-            {(insights?.insights || ["Generate insights to see patterns, anomalies, and behavioral trends."]).map((item, i) => (
-              <li key={item} className="insight-item" style={{ animationDelay: `${i * 0.05}s` }}>
-                <span style={{ color: "#8a2be2", marginRight: "0.5rem" }}>◆</span>
-                {item}
-              </li>
-            ))}
-          </ul>
-          {insights?.refined && (
-            <p style={{ marginTop: "1rem", fontSize: "0.8125rem", color: "#dcb8ff" }}>
-              ✦ Adaptive session refinement active.
-            </p>
-          )}
-        </div>
-
-        {/* Action Engine */}
-        <div className="glass-card">
-          <p className="overline mb-1">Action Engine</p>
-          <h2 className="font-manrope" style={{ fontSize: "1.375rem", fontWeight: 700, color: "#e5e2e1", marginBottom: "1.25rem" }}>
-            Refining Your Reflection
-          </h2>
-          <ol style={{ display: "flex", flexDirection: "column", gap: "0.625rem", listStyle: "none" }}>
-            {(actions || ["Generate analysis to receive the three highest-impact actions."]).map((item, i) => (
-              <li
-                key={item}
-                style={{
-                  background: "#2a2a2a",
-                  border: "1px solid rgba(76,67,84,0.18)",
-                  borderRadius: "12px",
-                  padding: "1rem 1.25rem",
-                  display: "flex",
-                  gap: "0.875rem",
-                  alignItems: "flex-start",
-                }}
-              >
-                <span
-                  style={{
-                    flexShrink: 0,
-                    width: "24px",
-                    height: "24px",
-                    borderRadius: "50%",
-                    background: "linear-gradient(135deg, #8a2be2, #080cff)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: "0.6875rem",
-                    fontWeight: 700,
-                    color: "#dcb8ff",
-                    fontFamily: "Inter, sans-serif",
-                  }}
-                >
-                  {i + 1}
-                </span>
-                <span style={{ fontSize: "0.9375rem", color: "#cfc2d7", lineHeight: 1.55 }}>{item}</span>
-              </li>
-            ))}
-          </ol>
-
-          <div style={{ marginTop: "1.5rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-            <button className="btn-secondary" onClick={onNudge} disabled={loading} style={{ alignSelf: "flex-start" }}>
-              🔔 Send Test Alert
+              {tab}
             </button>
-            {nudge && (
-              <div
-                style={{
-                  background: "rgba(138,43,226,0.08)",
-                  border: "1px solid rgba(138,43,226,0.25)",
-                  borderRadius: "10px",
-                  padding: "1rem 1.25rem",
-                }}
-              >
-                <p style={{ fontWeight: 700, fontSize: "0.8125rem", color: "#dcb8ff", textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "Inter, sans-serif" }}>
-                  {nudge.type}
-                </p>
-                <p style={{ color: "#e5e2e1", marginTop: "0.5rem", fontSize: "0.9375rem", lineHeight: 1.6 }}>
-                  {nudge.whatsapp_ready}
-                </p>
-              </div>
-            )}
-          </div>
+          ))}
         </div>
-      </section>
 
-      {/* ── Transaction Table ── */}
-      <div className="fade-up fade-up-4">
-        <TransactionTable transactions={transactions} onSave={onSaveTransactions} loading={loading} />
-      </div>
-    </div>
-  );
-}
+        <div className="relative">
+          <button 
+            onClick={() => setShowManageMenu(!showManageMenu)}
+            className="flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-md text-sm font-inter hover:bg-white/10 transition-colors"
+          >
+            Manage Data <Menu size={16} />
+          </button>
+          
+          <AnimatePresence>
+            {showManageMenu && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="absolute top-12 right-0 w-56 glass-card p-2 border border-white/10 shadow-2xl flex flex-col items-start z-50"
+              >
+                <button 
+                  onClick={() => {
+                    setShowManageMenu(false);
+                    onDelete();
+                  }}
+                  className="w-full text-left px-4 py-3 rounded-lg text-red-400 hover:bg-red-500/10 font-inter text-sm transition-colors flex items-center gap-2"
+                >
+                   <X size={14} /> Delete Data Permanently
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </nav>
 
-function ChartCard({ title, subtitle, children }) {
-  return (
-    <div className="glass-card">
-      <div style={{ marginBottom: "1.25rem" }}>
-        <p className="overline mb-1">{subtitle}</p>
-        <h3 className="font-manrope" style={{ fontSize: "1.25rem", fontWeight: 700, color: "#e5e2e1" }}>
-          {title}
-        </h3>
+      {/* Global Story Container */}
+      <main className="relative z-10 max-w-5xl mx-auto flex flex-col items-center">
+        
+        {/* Section 1: Hero */}
+        <section id="dashboard" className="w-full min-h-[90vh] flex flex-col items-center justify-center pt-24 pb-32">
+          <HeroSection scrollYProgress={scrollYProgress} />
+        </section>
+
+        {/* Section 2: Input Cards && Section 3: Trust Bar */}
+        <section className="w-full flex flex-col items-center justify-center pb-40">
+          <InputSection 
+            onAddTransactions={onAddTransactions}
+            onParseText={onParseText}
+            onUploadStatement={onUploadStatement}
+            loading={loading}
+          />
+        </section>
+
+        {/* Section 5: Analytics */}
+        <section id="analytics" className="w-full py-32">
+          <AnalyticsSection metrics={metrics} transactions={transactions} />
+        </section>
+
+        {/* Section 6: Insights (Constellation) */}
+        <section id="insights" className="w-full py-40">
+          <InsightsSection 
+            personality={personality} 
+            insights={insights} 
+            onGenerate={onGenerate} 
+            onRefine={onRefine} 
+            loading={loading}
+            transactions={transactions}
+          />
+        </section>
+
+        {/* Section 7: Actions */}
+        <section id="actions" className="w-full py-32">
+          <ActionsSection actions={actions} onSaveTransactions={onSaveTransactions} loading={loading} />
+        </section>
+
+        {/* Section 8: Ledger / Transactions list */}
+        <section id="transactions" className="w-full py-32">
+          <TransactionsSection transactions={transactions} />
+        </section>
+      </main>
+
+      {/* Global Elements: Security & Chatbot */}
+      <div className="fixed bottom-8 right-8 z-50 flex flex-col items-end gap-4">
+        <motion.button 
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className="flex items-center gap-2 px-4 py-2 bg-black/60 border border-white/10 rounded-full backdrop-blur-md shadow-lg group"
+          onClick={() => setShowSecurityModal(true)}
+        >
+          <Shield size={16} className="text-green-400 group-hover:drop-shadow-[0_0_10px_rgba(74,222,128,0.8)]" />
+          <span className="text-xs font-inter font-medium text-white/80">Secure</span>
+        </motion.button>
+
+        <motion.button 
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className="p-4 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full shadow-[0_0_30px_rgba(138,43,226,0.3)] hover:shadow-[0_0_45px_rgba(138,43,226,0.5)] border border-white/20"
+        >
+          <MessageSquare size={24} className="text-white" />
+        </motion.button>
       </div>
-      {children}
+
+      {/* Security Modal */}
+      <AnimatePresence>
+        {showSecurityModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4 backdrop-blur-xl bg-black/40"
+          >
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="relative w-full max-w-lg glass-card p-8 border border-green-500/20"
+            >
+               <button 
+                 onClick={() => setShowSecurityModal(false)}
+                 className="absolute top-4 right-4 text-[#cfc2d7] hover:text-white"
+               >
+                 <X size={20} />
+               </button>
+
+               <div className="flex items-center gap-4 mb-8">
+                  <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center border border-green-500/30">
+                    <Lock size={24} className="text-green-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-manrope font-bold text-white">Trust & Security</h2>
+                    <p className="text-green-400 font-inter text-sm">Protected by Financial Mirror</p>
+                  </div>
+               </div>
+
+               <div className="flex flex-col gap-6">
+                 <div className="flex items-start gap-4">
+                    <CheckCircle size={20} className="text-green-400 mt-1 shrink-0" />
+                    <div>
+                      <h4 className="font-manrope font-semibold text-white mb-1">Zero-Knowledge Architecture</h4>
+                      <p className="text-sm font-inter text-[#988ca0]">We cannot see your raw transaction logs. Financial data is mathematically pooled to derive insights exclusively.</p>
+                    </div>
+                 </div>
+                 <div className="flex items-start gap-4">
+                    <CheckCircle size={20} className="text-green-400 mt-1 shrink-0" />
+                    <div>
+                      <h4 className="font-manrope font-semibold text-white mb-1">Session-Bound Processing</h4>
+                      <p className="text-sm font-inter text-[#988ca0]">The moment you hit "Delete Data", your entire profile is cryptographically wiped from local memory and our endpoints.</p>
+                    </div>
+                 </div>
+                 <div className="flex items-start gap-4">
+                    <CheckCircle size={20} className="text-green-400 mt-1 shrink-0" />
+                    <div>
+                      <h4 className="font-manrope font-semibold text-white mb-1">Bank-Grade Encryption</h4>
+                      <p className="text-sm font-inter text-[#988ca0]">Data payloads transition over strict TLS 1.3 tunnels with AES-GCM encryption layers protecting your anonymity.</p>
+                    </div>
+                 </div>
+               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }

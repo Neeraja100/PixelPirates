@@ -7,10 +7,10 @@ TransactionType = Literal["income", "expense"]
 
 
 class UserProfile(BaseModel):
-    name: str = Field(min_length=1)
-    phone: str = Field(min_length=5)
-    monthly_income: float = Field(ge=0)
-    financial_goal: str = Field(min_length=1)
+    name: str = Field(min_length=1, max_length=100, pattern=r"^[\w\s.,!?'-]+$")
+    phone: str = Field(min_length=5, max_length=20, pattern=r"^\+?[\d\s-]+$")
+    monthly_income: float = Field(ge=0, le=1_000_000_000.0)
+    financial_goal: str = Field(min_length=1, max_length=500)
 
 
 class SessionStartRequest(BaseModel):
@@ -24,22 +24,22 @@ class SessionStartResponse(BaseModel):
 
 
 class Transaction(BaseModel):
-    id: str | None = None
-    date: str
-    description: str
-    amount: float
+    id: str | None = Field(default=None, max_length=100)
+    date: str = Field(max_length=50)
+    description: str = Field(max_length=500, pattern=r"^[\w\s.,!?'\"-]*$")
+    amount: float = Field(ge=-1_000_000_000.0, le=1_000_000_000.0)
     type: TransactionType = "expense"
-    category: str = "Uncategorized"
+    category: str = Field(default="Uncategorized", max_length=100)
 
 
 class TransactionBatchRequest(BaseModel):
-    session_id: str
-    transactions: list[Transaction]
+    session_id: str = Field(max_length=100)
+    transactions: list[Transaction] = Field(max_length=1000)
 
 
 class TextInputRequest(BaseModel):
-    session_id: str
-    text: str
+    session_id: str = Field(max_length=100)
+    text: str = Field(max_length=10000)
 
 
 class SessionRequest(BaseModel):

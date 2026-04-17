@@ -16,7 +16,7 @@ export default function AuthPage({ onLogin, onBack }) {
     // Simulate auth network request
     setTimeout(() => {
        setLoading(false);
-       onLogin();
+       onLogin(email);
     }, 1200);
   };
 

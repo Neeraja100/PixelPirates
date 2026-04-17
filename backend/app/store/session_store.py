@@ -8,8 +8,20 @@ from app.models.schemas import Transaction, UserProfile
 class SessionStore:
     """In-memory session store. Financial data is deleted when the process/session ends."""
 
-    def __init__(self):
+    def __init__(self, max_transactions=1000, ttl_seconds=3600):
         self._sessions: dict[str, dict] = {}
+        self.max_transactions = max_transactions
+        self.ttl_seconds = ttl_seconds
+
+    def cleanup_stale_sessions(self):
+        """Lazy eviction of sessions older than TTL."""
+        now = datetime.now(timezone.utc)
+        stale = [
+            sid for sid, data in self._sessions.items()
+            if (now - datetime.fromisoformat(data["created_at"])).total_seconds() > self.ttl_seconds
+        ]
+        for sid in stale:
+            del self._sessions[sid]
 
     def create(self, profile: UserProfile, auto_clear_on_refresh: bool = True) -> str:
         session_id = str(uuid4())
@@ -24,9 +36,11 @@ class SessionStore:
         return session_id
 
     def exists(self, session_id: str) -> bool:
+        self.cleanup_stale_sessions()
         return session_id in self._sessions
 
     def get(self, session_id: str) -> dict:
+        self.cleanup_stale_sessions()
         if session_id not in self._sessions:
             raise KeyError("Session not found or already cleared.")
         return self._sessions[session_id]
@@ -37,6 +51,8 @@ class SessionStore:
 
     def add_transactions(self, session_id: str, transactions: list[Transaction]) -> list[dict]:
         session = self.get(session_id)
+        if len(session["transactions"]) + len(transactions) > self.max_transactions:
+            raise ValueError(f"Cannot exceed maximum of {self.max_transactions} transactions per session.")
         normalized = []
         for transaction in transactions:
             item = transaction.model_dump()

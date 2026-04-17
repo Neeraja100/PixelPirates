@@ -1,13 +1,58 @@
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 
+// Simple utility to strip HTML tags from strings before sending (Frontend sanitization layer)
+function sanitizeData(data) {
+  if (typeof data === 'string') {
+    return data.replace(/<[^>]*>?/gm, ''); // Strip HTML tags
+  }
+  if (Array.isArray(data)) {
+    return data.map(sanitizeData);
+  }
+  if (data !== null && typeof data === 'object' && !(data instanceof FormData)) {
+    const sanitized = {};
+    for (const key in data) {
+      if (data.hasOwnProperty(key)) {
+        sanitized[key] = sanitizeData(data[key]);
+      }
+    }
+    return sanitized;
+  }
+  return data;
+}
+
 async function request(path, options = {}) {
+  // Sanitize JSON bodies before sending
+  if (options.body && typeof options.body === 'string' && !(options.body instanceof FormData)) {
+     try {
+       const parsed = JSON.parse(options.body);
+       options.body = JSON.stringify(sanitizeData(parsed));
+     } catch(e) {
+       // Ignore if not JSON
+     }
+  }
+
   const response = await fetch(`${API_BASE}${path}`, {
     headers: options.body instanceof FormData ? undefined : { "Content-Type": "application/json" },
     ...options,
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(payload.detail || "Request failed");
+    // Mask generic backend errors for safety, expose only safe client-facing ones
+    let errorMsg = "Our servers encountered an issue. Please try again.";
+    if ([400, 413, 429].includes(response.status)) {
+        errorMsg = payload.detail || "Invalid request or payload too large.";
+    } else if (response.status === 422) {
+        // FastAPI validation errors (422) return an array in `detail`
+        if (Array.isArray(payload.detail)) {
+            errorMsg = "Validation Error: " + payload.detail.map(e => `${e.loc.join('.')}: ${e.msg}`).join(", ");
+        } else {
+            errorMsg = payload.detail || "Validation Error.";
+        }
+    } else if (response.status === 404) {
+        errorMsg = "Session expired or data not found.";
+    }
+    
+    throw new Error(errorMsg);
   }
   return payload;
 }

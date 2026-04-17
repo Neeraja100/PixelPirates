@@ -4,10 +4,7 @@ import { api } from "./api/client.js";
 import LandingPage from "./components/LandingPage.jsx";
 import AuthPage from "./components/AuthPage.jsx";
 import OnboardingForm from "./components/OnboardingForm.jsx";
-import MirrorView from "./components/MirrorView.jsx";
-import ConstellationsView from "./components/ConstellationsView.jsx";
-import LedgerView from "./components/LedgerView.jsx";
-import SecurityView from "./components/SecurityView.jsx";
+import Dashboard from "./components/Dashboard.jsx";
 
 export default function App() {
   const [step, setStep] = useState(() => {
@@ -15,7 +12,6 @@ export default function App() {
     if (['landing', 'auth', 'onboarding', 'app'].includes(hash)) return hash;
     return localStorage.getItem("financialMirrorSessionId") ? "app" : "landing";
   });
-  const [activeTab, setActiveTab] = useState("mirror"); 
   
   const [sessionId, setSessionId] = useState(() => localStorage.getItem("financialMirrorSessionId") || "");
   const [profile, setProfile] = useState(() => {
@@ -193,98 +189,22 @@ export default function App() {
     return <OnboardingForm onSubmit={startSession} loading={loading} />;
   }
 
+  // Final step: Core Dashboard Experience (Scroll View)
   return (
-    <div style={{ minHeight: "100vh", background: "#0e0e0e", position: "relative" }}>
-      {/* Ambient glows */}
-      <div className="pointer-events-none fixed" style={{ top: "-5%", left: "-5%", width: "600px", height: "600px", borderRadius: "50%", background: "#8a2be2", filter: "blur(180px)", opacity: 0.10, zIndex: 0 }} />
-      <div className="pointer-events-none fixed" style={{ bottom: "0", right: "-5%", width: "450px", height: "450px", borderRadius: "50%", background: "#080cff", filter: "blur(160px)", opacity: 0.07, zIndex: 0 }} />
-
-      {/* App nav */}
-      <nav className="sticky top-0 z-50" style={{ background: "rgba(19,19,19,0.80)", backdropFilter: "blur(28px)", borderBottom: "1px solid rgba(76,67,84,0.22)" }}>
-        <div style={{ maxWidth: "1280px", margin: "0 auto", padding: "0 1.5rem", height: "64px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-            <span className="font-manrope gradient-text" style={{ fontWeight: 700, fontSize: "1.0625rem", letterSpacing: "0.04em", textTransform: "uppercase" }}>
-              The Financial Mirror
-            </span>
-          </div>
-
-          <div style={{ display: "flex", gap: "2.5rem", alignItems: "center", height: "100%" }}>
-            {["mirror", "insights", "ledger", "security"].map(tab => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  color: activeTab === tab ? "#dcb8ff" : "#4c4354",
-                  fontSize: "0.875rem",
-                  fontWeight: activeTab === tab ? 600 : 400,
-                  textTransform: "capitalize",
-                  cursor: "pointer",
-                  fontFamily: "Inter, sans-serif",
-                  borderBottom: activeTab === tab ? "2px solid #8a2be2" : "2px solid transparent",
-                  height: "100%",
-                  boxSizing: "border-box",
-                  display: "flex",
-                  alignItems: "center",
-                  transition: "all 0.2s ease"
-                }}
-              >
-                {{ mirror: "Analysis", insights: "Insights", ledger: "Actions", security: "Transaction" }[tab]}
-              </button>
-            ))}
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-            {loading && (
-              <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#ffb873", animation: "pulse 1s ease-in-out infinite" }} />
-            )}
-            <span className="material-symbols-outlined" style={{ color: "#cfc2d7", fontSize: "1.25rem" }}>notifications</span>
-            <span className="material-symbols-outlined" style={{ color: "#cfc2d7", fontSize: "1.25rem" }}>mic</span>
-            <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "#2a2a2a", border: "1px solid #4c4354", display: "flex", alignItems: "center", justifyContent: "center" }}>
-               <span className="material-symbols-outlined" style={{ color: "#8a2be2", fontSize: "1rem" }}>person</span>
-            </div>
-          </div>
-
-        </div>
-      </nav>
-
-      {/* Main content */}
-      <main style={{ position: "relative", zIndex: 1, maxWidth: "1280px", margin: "0 auto", padding: "2rem 1.5rem 4rem" }}>
-        
-        {error && (
-          <div style={{ marginBottom: "1.25rem", background: "rgba(255,180,171,0.08)", border: "1px solid rgba(255,180,171,0.25)", borderRadius: "10px", padding: "1rem 1.25rem", color: "#ffb4ab", fontSize: "0.9375rem" }}>
-            {error}
-          </div>
-        )}
-
-        <div style={{ minHeight: "60vh" }}>
-           {activeTab === "mirror" && (
-             <MirrorView metrics={metrics} transactions={transactions} />
-           )}
-           {activeTab === "insights" && (
-             <ConstellationsView 
-                personality={personality} 
-                insights={insights} 
-                transactions={transactions} 
-                loading={loading}
-                onGenerate={generateAnalysis}
-                onRefine={refineInsights}
-             />
-           )}
-           {activeTab === "ledger" && (
-             <LedgerView 
-                transactions={transactions} 
-                onSaveTransactions={saveTransactions} 
-                loading={loading} 
-             />
-           )}
-           {activeTab === "security" && (
-             <SecurityView onDelete={deleteAllData} />
-           )}
-        </div>
-      </main>
-    </div>
+    <Dashboard 
+      metrics={metrics}
+      transactions={transactions}
+      personality={personality}
+      insights={insights}
+      actions={actions}
+      loading={loading}
+      onGenerate={generateAnalysis}
+      onRefine={refineInsights}
+      onSaveTransactions={saveTransactions}
+      onDelete={deleteAllData}
+      onAddTransactions={addTransactions}
+      onParseText={parseText}
+      onUploadStatement={uploadStatement}
+    />
   );
 }

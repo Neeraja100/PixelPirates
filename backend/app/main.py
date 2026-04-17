@@ -1,13 +1,21 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.routes import analysis, data, sessions
+from app.middleware.security import SecurityHeadersMiddleware, RateLimitMiddleware, PayloadSizeMiddleware
 
 app = FastAPI(
     title="Financial Mirror API",
     description="Session-only AI financial checkup backend for the hackathon MVP.",
     version="0.1.0",
 )
+
+# Reverted global exception handler since FastAPI natively hides 500 tracebacks from clients.
+
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RateLimitMiddleware)
+app.add_middleware(PayloadSizeMiddleware, max_size=5 * 1024 * 1024)
 
 app.add_middleware(
     CORSMiddleware,
