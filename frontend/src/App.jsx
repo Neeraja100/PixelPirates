@@ -6,57 +6,61 @@ import AuthPage from "./components/AuthPage.jsx";
 import OnboardingForm from "./components/OnboardingForm.jsx";
 import Dashboard from "./components/Dashboard.jsx";
 
+// Steps: "landing" → "auth" → "onboarding" → "app"
+
 export default function App() {
-  const [step, setStep] = useState(() => {
-    const hash = window.location.hash.replace('#', '');
-    if (['landing', 'auth', 'onboarding', 'app'].includes(hash)) return hash;
-    return localStorage.getItem("financialMirrorSessionId") ? "app" : "landing";
-  });
-  
-  const [sessionId, setSessionId] = useState(() => localStorage.getItem("financialMirrorSessionId") || "");
-  const [profile, setProfile] = useState(() => {
-    const saved = localStorage.getItem("financialMirrorProfile");
-    return saved ? JSON.parse(saved) : null;
-  });
+  // Determine initial step — always start at landing unless fully loaded session exists
+  const [step, setStep] = useState("landing");
+  const [sessionId, setSessionId] = useState("");
+  const [profile, setProfile] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [metrics, setMetrics] = useState(null);
   const [personality, setPersonality] = useState(null);
   const [insights, setInsights] = useState(null);
   const [actions, setActions] = useState(null);
-  const [nudge, setNudge] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // On mount: check if we can resume a valid session
   useEffect(() => {
-    // Push the initial state so back-navigating always finds a valid state
-    window.history.replaceState({ step }, '', window.location.pathname + '#' + step);
-    
-    const handlePopState = (e) => {
-      if (e.state && e.state.step) {
-        setStep(e.state.step);
-      } else {
-        const hash = window.location.hash.replace('#', '');
-        if (['landing', 'auth', 'onboarding', 'app'].includes(hash)) setStep(hash);
-        else setStep(localStorage.getItem("financialMirrorSessionId") ? "app" : "landing");
-      }
-    };
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
+    const token = localStorage.getItem("financialMirrorAuthToken");
+    const savedSessionId = localStorage.getItem("financialMirrorSessionId");
+
+    if (token && savedSessionId) {
+      // Try to restore existing session
+      api.getSession(savedSessionId)
+        .then((session) => {
+          setSessionId(savedSessionId);
+          setProfile(session.profile || null);
+          setTransactions(session.transactions || []);
+          if ((session.transactions || []).length > 0) {
+            api.metrics(savedSessionId).then(setMetrics).catch(() => {});
+            api.personality(savedSessionId).then(setPersonality).catch(() => {});
+            api.insights(savedSessionId).then(setInsights).catch(() => {});
+          }
+          setStep("app");
+        })
+        .catch(() => {
+          // Session dead — clear it but keep auth token (user still logged in)
+          localStorage.removeItem("financialMirrorSessionId");
+          const savedProfile = localStorage.getItem("financialMirrorProfile");
+          if (token && savedProfile) {
+            // Has account but no session → go to onboarding
+            setStep("onboarding");
+          } else {
+            setStep("landing");
+          }
+        });
+    }
+    // else: no token → stay at "landing"
   }, []);
 
-  const changeStep = (newStep) => {
-    setStep(newStep);
-    window.history.pushState({ step: newStep }, '', window.location.pathname + '#' + newStep);
-  };
-
-  useEffect(() => {
-    if (!sessionId) return;
-    refreshSession(sessionId).catch(() => {
-      localStorage.removeItem("financialMirrorSessionId");
-      setSessionId("");
-      changeStep("landing");
-    });
-  }, [sessionId]);
+  function changeStep(next) {
+    setStep(next);
+    // Sync URL hash for UX
+    const validHashes = { landing: "#landing", auth: "#auth", onboarding: "#onboarding", app: "#app" };
+    window.history.replaceState({}, "", validHashes[next] || "#landing");
+  }
 
   async function run(operation) {
     setLoading(true);
@@ -78,9 +82,33 @@ export default function App() {
     if ((session.transactions || []).length > 0) {
       const latestMetrics = await api.metrics(id);
       setMetrics(latestMetrics);
-      // Automatically attempt to fetch insight data if trans exist but no insight exists
-      api.personality(id).then(setPersonality).catch(()=>{});
-      api.insights(id).then(setInsights).catch(()=>{});
+      api.personality(id).then(setPersonality).catch(() => {});
+      api.insights(id).then(setInsights).catch(() => {});
+    }
+  }
+
+  // Called from AuthPage after successful signin/signup  
+  function handleAuthSuccess(email) {
+    // Check if user already has a saved profile (returning user)
+    const savedProfile = localStorage.getItem("financialMirrorProfile");
+    const savedSessionId = localStorage.getItem("financialMirrorSessionId");
+    if (savedSessionId && savedProfile) {
+      // Try to resume their session
+      api.getSession(savedSessionId)
+        .then((session) => {
+          setSessionId(savedSessionId);
+          setProfile(JSON.parse(savedProfile));
+          setTransactions(session.transactions || []);
+          if ((session.transactions || []).length > 0) {
+            api.metrics(savedSessionId).then(setMetrics).catch(() => {});
+          }
+          changeStep("app");
+        })
+        .catch(() => {
+          changeStep("onboarding");
+        });
+    } else {
+      changeStep("onboarding");
     }
   }
 
@@ -100,7 +128,8 @@ export default function App() {
     await run(async () => {
       const response = await api.addTransactions(sessionId, items);
       setTransactions(response.transactions);
-      setMetrics(await api.metrics(sessionId));
+      const m = await api.metrics(sessionId);
+      setMetrics(m);
     });
   }
 
@@ -153,18 +182,14 @@ export default function App() {
     });
   }
 
-  async function sendNudge() {
-    await run(async () => {
-      const response = await api.nudge(sessionId);
-      setNudge(response);
-    });
-  }
-
   async function deleteAllData() {
     await run(async () => {
-      if (sessionId) await api.deleteAll(sessionId);
+      if (sessionId) await api.deleteAll(sessionId).catch(() => {});
       localStorage.removeItem("financialMirrorSessionId");
       localStorage.removeItem("financialMirrorProfile");
+      localStorage.removeItem("financialMirrorAuthToken");
+      localStorage.removeItem("financialMirrorUserEmail");
+      localStorage.removeItem("financialMirrorUserName");
       setSessionId("");
       setProfile(null);
       setTransactions([]);
@@ -172,26 +197,37 @@ export default function App() {
       setPersonality(null);
       setInsights(null);
       setActions(null);
-      setNudge(null);
       changeStep("landing");
     });
   }
 
+  // ── ROUTING ──────────────────────────────────────────────────────────────
+
   if (step === "landing") {
-    return <LandingPage onStart={() => changeStep("onboarding")} onLogin={() => changeStep("auth")} />;
+    return (
+      <LandingPage
+        onStart={() => changeStep("auth")}   // "Initialize Reflection" → auth first
+        onLogin={() => changeStep("auth")}   // nav "Login" button
+      />
+    );
   }
 
   if (step === "auth") {
-    return <AuthPage onLogin={() => changeStep("onboarding")} onBack={() => window.history.back()} />;
+    return (
+      <AuthPage
+        onLogin={handleAuthSuccess}
+        onBack={() => changeStep("landing")}
+      />
+    );
   }
 
   if (step === "onboarding") {
     return <OnboardingForm onSubmit={startSession} loading={loading} />;
   }
 
-  // Final step: Core Dashboard Experience (Scroll View)
+  // Dashboard
   return (
-    <Dashboard 
+    <Dashboard
       metrics={metrics}
       transactions={transactions}
       personality={personality}

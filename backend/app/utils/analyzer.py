@@ -5,16 +5,19 @@ from app.utils.categorizer import DISCRETIONARY_CATEGORIES
 
 
 def _month_key(value: str) -> str:
-    try:
-        return datetime.fromisoformat(value[:10]).strftime("%Y-%m")
-    except ValueError:
-        return str(value)[:7] or "Unknown"
+    # Try ISO first, then Indian bank formats
+    for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y", "%d %b %Y", "%d-%b-%Y", "%d %B %Y", "%m/%d/%Y"):
+        try:
+            return datetime.strptime(str(value)[:11].strip(), fmt).strftime("%Y-%m")
+        except ValueError:
+            continue
+    return str(value)[:7] or "Unknown"
 
 
 def _weekday(value: str) -> int | None:
-    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%m/%d/%Y"):
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%m/%d/%Y", "%d %b %Y", "%d-%b-%Y", "%d %B %Y", "%d/%m/%y", "%d-%m-%y"):
         try:
-            return datetime.strptime(value[:10], fmt).weekday()
+            return datetime.strptime(str(value)[:12].strip(), fmt).weekday()
         except ValueError:
             continue
     return None

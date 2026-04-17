@@ -28,11 +28,66 @@ def categorize(description: str, transaction_type: str = "expense") -> str:
     return "Other"
 
 
+import os
+import json
+from openai import OpenAI
+from app.models.schemas import Transaction
+
+
 def normalize_transactions(transactions: list[Transaction]) -> list[Transaction]:
     normalized = []
+    uncategorized = []
+    
     for transaction in transactions:
         category = transaction.category
-        if not category or category == "Uncategorized":
+        if not category or category == "Uncategorized" or category == "Other":
             category = categorize(transaction.description, transaction.type)
-        normalized.append(transaction.model_copy(update={"category": category}))
+        
+        if category == "Other":
+            uncategorized.append(transaction)
+        else:
+            normalized.append(transaction.model_copy(update={"category": category}))
+            
+    if uncategorized:
+        api_key = os.getenv("OPENAI_API_KEY")
+        if api_key:
+            try:
+                client = OpenAI(api_key=api_key)
+                
+                # build a payload for batch
+                payload = [
+                    {"id": i, "desc": t.description} 
+                    for i, t in enumerate(uncategorized) 
+                ]
+                
+                prompt = (
+                    "You are a transaction categorizer. Categorize the items into one of strictly these categories: "
+                    f"{list(CATEGORY_RULES.keys())}. If completely unsure, use 'Other'. "
+                    "Respond purely in JSON as a dictionary mapping 'id' to 'Category'. "
+                    "Data: " + json.dumps(payload)
+                )
+                
+                completion = client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[{"role": "system", "content": "You output JSON mapping ID to Category."}, {"role": "user", "content": prompt}],
+                    response_format={"type": "json_object"}
+                )
+                result_map = json.loads(completion.choices[0].message.content)
+                
+                for i, t in enumerate(uncategorized):
+                    cat = result_map.get(str(i), result_map.get(i, "Other"))
+                    
+                    # Validate category is actually allowed
+                    if cat not in CATEGORY_RULES and cat != "Income":
+                        cat = "Other"
+                        
+                    normalized.append(t.model_copy(update={"category": cat}))
+                    
+            except Exception:
+                for t in uncategorized:
+                    normalized.append(t.model_copy(update={"category": "Other"}))
+        else:
+            for t in uncategorized:
+                normalized.append(t.model_copy(update={"category": "Other"}))
+                
     return normalized

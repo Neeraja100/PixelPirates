@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.routes import analysis, data, sessions
+from app.routes import analysis, auth, data, sessions
 from app.middleware.security import SecurityHeadersMiddleware, RateLimitMiddleware, PayloadSizeMiddleware
 
 app = FastAPI(
@@ -10,6 +10,11 @@ app = FastAPI(
     description="Session-only AI financial checkup backend for the hackathon MVP.",
     version="0.1.0",
 )
+
+from app.database import engine
+from app.models.db_models import Base
+
+Base.metadata.create_all(bind=engine)
 
 # Reverted global exception handler since FastAPI natively hides 500 tracebacks from clients.
 
@@ -30,6 +35,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
 app.include_router(sessions.router)
 app.include_router(data.router)
 app.include_router(analysis.router)
@@ -42,3 +48,8 @@ def health_check():
         "status": "ok",
         "privacy": "session-only; no permanent financial data storage",
     }
+ 
+
+
+
+

@@ -124,6 +124,21 @@ export const api = {
       body: JSON.stringify({ session_id: sessionId }),
     });
   },
+  signUp(email, password, name) {
+    return request("/auth/signup", {
+      method: "POST",
+      body: JSON.stringify({ email, password, name }),
+    });
+  },
+  signIn(email, password) {
+    return request("/auth/signin", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+  },
+  getMe(token) {
+    return request(`/auth/me?token=${encodeURIComponent(token)}`);
+  },
   deleteAll(sessionId) {
     return request(`/sessions/${sessionId}`, {
       method: "DELETE",
