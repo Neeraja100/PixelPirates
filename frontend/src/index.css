@@ -294,3 +294,20 @@ button, input, select, textarea {
 .fade-up-3 { animation-delay: 0.15s; }
 .fade-up-4 { animation-delay: 0.20s; }
 .fade-up-5 { animation-delay: 0.25s; }
+
+/* ─── Animated SVG Lines for Constellation ────────────────────────── */
+@keyframes flowDash {
+  to { stroke-dashoffset: -24; }
+}
+
+.constellation-path {
+  stroke-dasharray: 6 6;
+  animation: flowDash 2s linear infinite;
+  animation-play-state: paused;
+  transition: all 0.5s ease;
+}
+
+.group:hover .constellation-path {
+  animation-play-state: running;
+  stroke-width: 2.5px;
+}
