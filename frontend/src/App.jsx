@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 import { api } from "./api/client.js";
 import LandingPage from "./components/LandingPage.jsx";
@@ -16,6 +16,7 @@ export default function App() {
     return localStorage.getItem("financialMirrorSessionId") ? "app" : "landing";
   });
   const [activeTab, setActiveTab] = useState("mirror"); 
+  const observerRef = useRef(null);
   
   const [sessionId, setSessionId] = useState(() => localStorage.getItem("financialMirrorSessionId") || "");
   const [profile, setProfile] = useState(() => {
@@ -47,6 +48,41 @@ export default function App() {
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
+
+  // IntersectionObserver for ScrollSpy Tab Navigation
+  useEffect(() => {
+    if (step !== "app") return;
+    
+    const handleIntersect = (entries) => {
+      // Find the most visible intersecting section
+      let maxRatio = 0;
+      let targetId = activeTab;
+      entries.forEach((entry) => {
+        if (entry.isIntersecting && entry.intersectionRatio > maxRatio) {
+          maxRatio = entry.intersectionRatio;
+          targetId = entry.target.id;
+        }
+      });
+      if (maxRatio > 0) {
+        setActiveTab(targetId);
+      }
+    };
+
+    observerRef.current = new IntersectionObserver(handleIntersect, {
+      root: null,
+      rootMargin: "-20% 0px -40% 0px",
+      threshold: [0.1, 0.5, 0.9]
+    });
+
+    ["mirror", "insights", "ledger", "security"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) observerRef.current.observe(el);
+    });
+
+    return () => {
+      if (observerRef.current) observerRef.current.disconnect();
+    };
+  }, [step]); // Re-bind observer if we enter the app step
 
   const changeStep = (newStep) => {
     setStep(newStep);

@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
-import { XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, CartesianGrid, PieChart, Pie, Cell } from "recharts";
+import { XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, LineChart, Line, CartesianGrid, PieChart, Pie, Cell } from "recharts";
 import { formatMoney } from "../utils/formatters.js";
-import { generatePortfolioSim, generateSpendingDensity, generatePaymentMethods } from "../utils/simulatedData.js";
+import { generatePortfolioSim, generatePaymentMethods } from "../utils/simulatedData.js";
 
 const tooltipStyle = {
   background: "rgba(28,27,27,0.95)",
@@ -16,7 +16,14 @@ export default function MirrorView({ transactions, metrics, onAddTransactions, o
   const [showManualModal, setShowManualModal] = useState(false);
   const [manualType, setManualType] = useState("");
   const [manualAmount, setManualAmount] = useState("");
+  const [mousePos, setMousePos] = useState({ x: -1000, y: -1000 });
   const fileInputRef = useRef(null);
+
+  const handleMouseMove = (e) => {
+    // Only track within relative offset if we attach to a parent or use getBoundingClientRect
+    // Since we attach to individual cards, we use native coordinates or generic tracking
+    setMousePos({ x: e.clientX, y: e.clientY });
+  };
 
   const handleManualSubmit = () => {
     if (!manualType || !manualAmount) return;
@@ -33,11 +40,23 @@ export default function MirrorView({ transactions, metrics, onAddTransactions, o
   };
 
   const portfolio = generatePortfolioSim(transactions);
-  const densityMap = generateSpendingDensity(transactions);
   const paymentMethods = generatePaymentMethods(metrics);
 
   return (
-    <div className="space-y-6 fade-up">
+    <div className="space-y-6 fade-up relative" onMouseMove={handleMouseMove}>
+      
+      {/* Dynamic Cursor Glow for Analysis section */}
+      <div 
+         className="pointer-events-none fixed z-[-1] transition-opacity duration-300"
+         style={{
+            width: "600px",
+            height: "600px",
+            left: mousePos.x - 300,
+            top: mousePos.y - 300,
+            background: "radial-gradient(circle, rgba(138,43,226,0.1) 0%, rgba(8,12,255,0.02) 40%, rgba(0,0,0,0) 70%)",
+            filter: "blur(60px)",
+         }}
+      />
       {/* Hero: Total Valuation */}
       <section style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "2rem" }}>
         <div>
@@ -73,12 +92,14 @@ export default function MirrorView({ transactions, metrics, onAddTransactions, o
 
       {/* Main Grid */}
       <div className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
-        {/* Portfolio Distribution */}
-        <div className="glass-card" style={{ padding: "2rem", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-          <div>
+        <div className="glass-card relative overflow-hidden group" style={{ padding: "2rem", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+          
+          <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-gradient-to-br from-white/[0.04] to-transparent z-0" />
+          
+          <div className="relative z-10">
             <h3 className="font-manrope" style={{ fontSize: "1.375rem", fontWeight: 700, color: "#e5e2e1", display: "flex", justifyContent: "space-between" }}>
               Portfolio Distribution
-              <span className="material-symbols-outlined" style={{ color: "#4c4354" }}>auto_awesome</span>
+              <span className="material-symbols-outlined" style={{ color: "#4c4354", transition: "color 0.3s ease" }} className="group-hover:text-[#dcb8ff] material-symbols-outlined">auto_awesome</span>
             </h3>
             <p className="font-inter mt-3" style={{ color: "#cfc2d7", fontSize: "0.9375rem", lineHeight: 1.6, maxWidth: "80%" }}>
               Your wealth is currently heavily weighted in <span style={{ color: "#dcb8ff" }}>Equities</span> and <span style={{ color: "#dcb8ff" }}>Digital Assets</span>. Consider rebalancing into Fixed Income to hedge against volatility.
@@ -101,36 +122,54 @@ export default function MirrorView({ transactions, metrics, onAddTransactions, o
           </div>
         </div>
 
-        {/* Spending Density */}
-        <div className="glass-card" style={{ padding: "1.5rem" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1.5rem" }}>
-            <p className="overline">SPENDING DENSITY</p>
-            <span className="material-symbols-outlined" style={{ fontSize: "1rem", color: "#4c4354" }}>info</span>
-          </div>
+        {/* Spending Analysis Line Chart */}
+        <div className="glass-card relative overflow-hidden group" style={{ padding: "1.5rem" }}>
           
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "0.35rem" }}>
-            {densityMap.map((cell, i) => (
-              <div 
-                key={i} 
-                style={{ 
-                  aspectRatio: "1", 
-                  borderRadius: "2px", 
-                  background: cell.value > 80 ? "#8a2be2" : cell.value > 50 ? "rgba(138,43,226,0.6)" : cell.value > 20 ? "rgba(138,43,226,0.3)" : "rgba(76,67,84,0.15)" 
-                }} 
-              />
-            ))}
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: "0.75rem" }}>
-            <span className="font-inter" style={{ fontSize: "0.5rem", color: "#988ca0", textTransform: "uppercase", letterSpacing: "0.1em" }}>MON</span>
-            <span className="font-inter" style={{ fontSize: "0.5rem", color: "#988ca0", textTransform: "uppercase", letterSpacing: "0.1em" }}>SUN</span>
+          <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-gradient-to-tr from-[#8a2be2]/[0.03] to-transparent z-0" />
+
+          <div className="relative z-10 flex flex-col h-full">
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem" }}>
+              <p className="overline tracking-widest text-[#cfc2d7]">SPENDING VELOCITY</p>
+              <span className="group-hover:text-white transition-colors material-symbols-outlined" style={{ fontSize: "1rem", color: "#4c4354" }}>monitoring</span>
+            </div>
+            
+            <div style={{ flex: 1, minHeight: "150px", position: "relative", zIndex: 10 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={portfolio.sparkline.map((s, i) => ({ ...s, smooth: s.value + Math.sin(i)*500 }))}>
+                  <defs>
+                    <linearGradient id="lineColor" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#080cff" />
+                      <stop offset="100%" stopColor="#8a2be2" />
+                    </linearGradient>
+                  </defs>
+                  <Tooltip contentStyle={tooltipStyle} itemStyle={{ color: "#dcb8ff" }} cursor={{ stroke: "rgba(255,255,255,0.1)" }} />
+                  <Line 
+                    type="natural" 
+                    dataKey="smooth" 
+                    stroke="url(#lineColor)" 
+                    strokeWidth={3} 
+                    dot={false} 
+                    activeDot={{ r: 4, strokeWidth: 0, fill: "#fff" }}
+                    animationDuration={1500}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            
+            <div style={{ display: "flex", justifyContent: "space-between", mt: "auto" }}>
+              <span className="font-inter" style={{ fontSize: "0.5rem", color: "#988ca0", textTransform: "uppercase", letterSpacing: "0.1em" }}>Start</span>
+              <span className="font-inter" style={{ fontSize: "0.5rem", color: "#988ca0", textTransform: "uppercase", letterSpacing: "0.1em" }}>Present</span>
+            </div>
           </div>
         </div>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[1fr_1.5fr]">
         {/* Payment Methods */}
-        <div className="glass-card" style={{ padding: "1.5rem", display: "flex", alignItems: "center" }}>
-          <div style={{ width: "120px", height: "120px", position: "relative" }}>
+        <div className="glass-card relative group overflow-hidden" style={{ padding: "1.5rem", display: "flex", alignItems: "center" }}>
+          <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-gradient-to-r from-transparent to-white/[0.03] z-0" />
+          
+          <div style={{ width: "120px", height: "120px", position: "relative", zIndex: 10 }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={paymentMethods} innerRadius={42} outerRadius={55} dataKey="value" stroke="none">
@@ -161,9 +200,11 @@ export default function MirrorView({ transactions, metrics, onAddTransactions, o
         </div>
 
         {/* Quick Entry Dock placeholder */}
-        <div className="glass-card" style={{ padding: "1.5rem", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-             <p className="overline mb-4">ENTER EXPENSES' DETAILS</p>
-             <div className="grid grid-cols-3 gap-3">
+        <div className="glass-card relative group overflow-hidden" style={{ padding: "1.5rem", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+             <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-gradient-to-t from-white/[0.04] to-transparent z-0" />
+             
+             <p className="overline mb-4 relative z-10 text-[#cfc2d7] group-hover:text-white transition-colors">ENTER EXPENSES' DETAILS</p>
+             <div className="grid grid-cols-3 gap-3 relative z-10">
                 <button onClick={() => setShowManualModal(true)} className="btn-secondary" style={{ display: "flex", gap: "0.5rem", justifyContent: "center", padding: "1rem" }}>
                     <span className="material-symbols-outlined" style={{ fontSize: "1.125rem" }}>edit_note</span>
                     Manual
