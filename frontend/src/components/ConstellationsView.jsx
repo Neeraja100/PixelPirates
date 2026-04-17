@@ -20,7 +20,7 @@ export default function ConstellationsView({ personality, insights, transactions
       <div style={{ marginBottom: "2rem" }}>
         <p className="overline" style={{ letterSpacing: "0.15em", color: "#cfc2d7", marginBottom: "0.5rem" }}>EXPLORER PHASE: ANALYSIS</p>
         <h1 className="font-manrope" style={{ fontSize: "2.75rem", fontWeight: 700, color: "#e5e2e1", display: "flex", gap: "0.75rem" }}>
-          Financial <span style={{ color: "#080cff", background: "linear-gradient(90deg, #8a2be2, #080cff)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Constellations</span>
+          Financial <span style={{ color: "#080cff", background: "linear-gradient(90deg, #8a2be2, #080cff)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Insights</span>
         </h1>
         <p className="font-inter mt-3" style={{ color: "#988ca0", fontSize: "0.875rem", maxWidth: "340px", lineHeight: 1.6 }}>
           Your spending patterns mapped onto the digital void. Each node represents a gravitational pull on your capital. Explore the nebula of your financial psyche.
@@ -136,7 +136,7 @@ export default function ConstellationsView({ personality, insights, transactions
                         alignItems: "center"
                     }}>
                         <span className="font-inter" style={{ color: "#cfc2d7", fontSize: "0.875rem", fontWeight: 500 }}>{sub.name}</span>
-                        <span className="font-inter" style={{ color: "#ffb4ab", fontSize: "0.875rem", fontWeight: 700 }}>${Math.abs(sub.amount).toFixed(2)}</span>
+                        <span className="font-inter" style={{ color: "#ffb4ab", fontSize: "0.875rem", fontWeight: 700 }}>₹{Math.abs(sub.amount).toFixed(2)}</span>
                     </div>
                 ))}
             </div>
@@ -199,7 +199,7 @@ export default function ConstellationsView({ personality, insights, transactions
                  </div>
                  <div style={{ flex: 1 }}>
                      <p className="font-inter" style={{ fontSize: "0.625rem", color: "#988ca0", letterSpacing: "0.05em", marginBottom: "0.25rem" }}>Average Cost</p>
-                     <p className="font-manrope" style={{ fontSize: "1.125rem", color: "#ffb873", fontWeight: 600 }}>$142.00</p>
+                     <p className="font-manrope" style={{ fontSize: "1.125rem", color: "#ffb873", fontWeight: 600 }}>₹142.00</p>
                  </div>
             </div>
         </div>

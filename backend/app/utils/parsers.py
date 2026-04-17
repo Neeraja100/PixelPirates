@@ -29,13 +29,25 @@ def _normalize_type(amount: float, raw_type: str | None = None) -> str:
     return "expense"
 
 
+def _anonymize_description(text: str) -> str:
+    if not text or pd.isna(text):
+        return "Transaction"
+    text = str(text)
+    text = re.sub(r'[A-Za-z]{4}0[A-Za-z0-9]{6}', '[REDACTED IFSC]', text)
+    text = re.sub(r'\b[A-Za-z0-9]{10,}\b', '[REDACTED ID]', text)
+    text = re.sub(r'\b\d{6,}\b', '[REDACTED ACCT]', text)
+    text = re.sub(r'[\w\.-]+@[\w\.-]+', '[REDACTED EMAIL]', text)
+    return text.strip() or "Transaction"
+
+
 def dataframe_to_transactions(df: pd.DataFrame) -> list[Transaction]:
     df.columns = [str(column).strip().lower() for column in df.columns]
     transactions = []
 
     for _, row in df.iterrows():
         date_value = row.get("date") or row.get("transaction date") or row.get("txn date") or str(date.today())
-        description = row.get("description") or row.get("narration") or row.get("details") or row.get("merchant") or "Transaction"
+        raw_desc = row.get("description") or row.get("narration") or row.get("details") or row.get("merchant") or "Transaction"
+        description = _anonymize_description(raw_desc)
         raw_amount = row.get("amount")
         if raw_amount is None:
             debit = _clean_amount(row.get("debit", 0))

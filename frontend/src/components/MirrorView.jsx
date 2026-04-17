@@ -1,3 +1,4 @@
+import { useState, useRef } from "react";
 import { XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, CartesianGrid, PieChart, Pie, Cell } from "recharts";
 import { formatMoney } from "../utils/formatters.js";
 import { generatePortfolioSim, generateSpendingDensity, generatePaymentMethods } from "../utils/simulatedData.js";
@@ -11,7 +12,26 @@ const tooltipStyle = {
   fontSize: "0.8125rem",
 };
 
-export default function MirrorView({ transactions, metrics }) {
+export default function MirrorView({ transactions, metrics, onAddTransactions, onUpload }) {
+  const [showManualModal, setShowManualModal] = useState(false);
+  const [manualType, setManualType] = useState("");
+  const [manualAmount, setManualAmount] = useState("");
+  const fileInputRef = useRef(null);
+
+  const handleManualSubmit = () => {
+    if (!manualType || !manualAmount) return;
+    onAddTransactions([{
+      date: new Date().toISOString().split('T')[0],
+      description: manualType,
+      amount: Number(manualAmount),
+      type: "expense",
+      category: "manual"
+    }]);
+    setShowManualModal(false);
+    setManualType("");
+    setManualAmount("");
+  };
+
   const portfolio = generatePortfolioSim(transactions);
   const densityMap = generateSpendingDensity(transactions);
   const paymentMethods = generatePaymentMethods(metrics);
@@ -24,7 +44,7 @@ export default function MirrorView({ transactions, metrics }) {
           <p className="overline mb-1">TOTAL VALUATION</p>
           <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem" }}>
             <span className="font-manrope" style={{ fontSize: "3.5rem", fontWeight: 700, color: "#e5e2e1", lineHeight: 1 }}>
-              ${portfolio.valuation.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).split('.')[0]}
+              ₹{portfolio.valuation.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).split('.')[0]}
             </span>
             <span className="font-manrope" style={{ fontSize: "1.5rem", color: "#8a2be2" }}>
               .{portfolio.valuation.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).split('.')[1]}
@@ -68,15 +88,15 @@ export default function MirrorView({ transactions, metrics }) {
           <div className="grid grid-cols-3 gap-4 mt-8 pt-6" style={{ borderTop: "1px solid rgba(76,67,84,0.15)" }}>
             <div>
               <p className="overline" style={{ fontSize: "0.625rem" }}>LIQUID</p>
-              <p className="font-manrope" style={{ fontSize: "1.25rem", fontWeight: 700, color: "#e5e2e1", marginTop: "0.25rem" }}>${portfolio.liquid.toLocaleString()}</p>
+              <p className="font-manrope" style={{ fontSize: "1.25rem", fontWeight: 700, color: "#e5e2e1", marginTop: "0.25rem" }}>₹{portfolio.liquid.toLocaleString()}</p>
             </div>
             <div>
               <p className="overline" style={{ fontSize: "0.625rem" }}>INVESTMENTS</p>
-              <p className="font-manrope" style={{ fontSize: "1.25rem", fontWeight: 700, color: "#e5e2e1", marginTop: "0.25rem" }}>${portfolio.investments.toLocaleString()}</p>
+              <p className="font-manrope" style={{ fontSize: "1.25rem", fontWeight: 700, color: "#e5e2e1", marginTop: "0.25rem" }}>₹{portfolio.investments.toLocaleString()}</p>
             </div>
             <div>
               <p className="overline" style={{ fontSize: "0.625rem" }}>FIXED ASSETS</p>
-              <p className="font-manrope" style={{ fontSize: "1.25rem", fontWeight: 700, color: "#e5e2e1", marginTop: "0.25rem" }}>${portfolio.fixed.toLocaleString()}</p>
+              <p className="font-manrope" style={{ fontSize: "1.25rem", fontWeight: 700, color: "#e5e2e1", marginTop: "0.25rem" }}>₹{portfolio.fixed.toLocaleString()}</p>
             </div>
           </div>
         </div>
@@ -134,7 +154,7 @@ export default function MirrorView({ transactions, metrics }) {
                   <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: pm.fill }} />
                   <span className="font-inter" style={{ fontSize: "0.75rem", color: "#cfc2d7" }}>{pm.name}</span>
                 </div>
-                <span className="font-inter" style={{ fontSize: "0.75rem", color: "#cfc2d7" }}>${(pm.value/1000).toFixed(1)}k</span>
+                <span className="font-inter" style={{ fontSize: "0.75rem", color: "#cfc2d7" }}>₹{(pm.value/1000).toFixed(1)}k</span>
               </div>
             ))}
           </div>
@@ -142,51 +162,55 @@ export default function MirrorView({ transactions, metrics }) {
 
         {/* Quick Entry Dock placeholder */}
         <div className="glass-card" style={{ padding: "1.5rem", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-             <p className="overline mb-4">QUICK ENTRY DOCK</p>
+             <p className="overline mb-4">ENTER EXPENSES' DETAILS</p>
              <div className="grid grid-cols-3 gap-3">
-                <button className="btn-secondary" style={{ display: "flex", gap: "0.5rem", justifyContent: "center", padding: "1rem" }}>
+                <button onClick={() => setShowManualModal(true)} className="btn-secondary" style={{ display: "flex", gap: "0.5rem", justifyContent: "center", padding: "1rem" }}>
                     <span className="material-symbols-outlined" style={{ fontSize: "1.125rem" }}>edit_note</span>
                     Manual
                 </button>
-                <button className="btn-secondary" style={{ display: "flex", gap: "0.5rem", justifyContent: "center", padding: "1rem" }}>
+                <button onClick={() => console.log("AI Voice placeholder invoked")} className="btn-secondary" style={{ display: "flex", gap: "0.5rem", justifyContent: "center", padding: "1rem" }}>
                     <span className="material-symbols-outlined" style={{ fontSize: "1.125rem" }}>mic</span>
                     AI Voice
                 </button>
-                <button className="btn-secondary" style={{ display: "flex", gap: "0.5rem", justifyContent: "center", padding: "1rem" }}>
+                <button onClick={() => fileInputRef.current?.click()} className="btn-secondary" style={{ display: "flex", gap: "0.5rem", justifyContent: "center", padding: "1rem" }}>
                     <span className="material-symbols-outlined" style={{ fontSize: "1.125rem" }}>upload_file</span>
-                    CSV
+                    PDF
                 </button>
+                <input type="file" ref={fileInputRef} accept=".pdf" style={{ display: "none" }} onChange={(e) => { 
+                    if(e.target.files[0]) onUpload(e.target.files[0]); 
+                    e.target.value = null;
+                }} />
              </div>
         </div>
       </div>
 
-      {/* Optimization Opportunity */}
-      <div style={{ 
-          background: "linear-gradient(90deg, rgba(30,28,33,1) 0%, rgba(28,27,27,1) 100%)", 
-          border: "1px solid rgba(76,67,84,0.25)",
-          borderLeft: "4px solid #ffb873",
-          borderRadius: "12px",
-          padding: "1.5rem 2rem",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "2rem"
-      }}>
-        <div style={{ display: "flex", gap: "1.5rem", alignItems: "center" }}>
-            <div style={{ width: "48px", height: "48px", borderRadius: "12px", background: "rgba(255,184,115,0.1)", display: "flex", alignItems: "center", justifyContent: "center", color: "#ffb873" }}>
-                <span className="material-symbols-outlined">trending_up</span>
+      {showManualModal && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
+          <div className="glass-card" style={{ padding: "2rem", width: "400px", maxWidth: "90%" }}>
+            <h3 className="font-manrope mb-4" style={{ fontSize: "1.25rem", color: "#e5e2e1" }}>Manual Entry</h3>
+            <input 
+              type="text" 
+              placeholder="Expense Type" 
+              value={manualType} 
+              onChange={e => setManualType(e.target.value)} 
+              className="mb-3 font-inter"
+              style={{ width: "100%", padding: "0.75rem", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", color: "#fff", outline: "none" }}
+            />
+            <input 
+              type="number" 
+              placeholder="Expense Amount" 
+              value={manualAmount} 
+              onChange={e => setManualAmount(e.target.value)} 
+              className="mb-4 font-inter"
+              style={{ width: "100%", padding: "0.75rem", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", color: "#fff", outline: "none" }}
+            />
+            <div style={{ display: "flex", gap: "1rem", justifyContent: "flex-end" }}>
+              <button className="btn-secondary" onClick={() => setShowManualModal(false)}>Cancel</button>
+              <button className="btn-primary" onClick={handleManualSubmit}>Submit</button>
             </div>
-            <div>
-                <h4 className="font-manrope" style={{ fontSize: "1.125rem", fontWeight: 700, color: "#e5e2e1", marginBottom: "0.25rem" }}>Optimization Opportunity</h4>
-                <p className="font-inter" style={{ fontSize: "0.875rem", color: "#988ca0", lineHeight: 1.5 }}>
-                    Our mirror detects a 1.2% higher yield potential on your dormant cash reserves in the 'Main Ledger'. Tap to migrate to High-Yield Treasury Vaults.
-                </p>
-            </div>
+          </div>
         </div>
-        <button className="btn-primary" style={{ whiteSpace: "nowrap", padding: "0.75rem 1.5rem" }}>
-            Review Assets
-        </button>
-      </div>
+      )}
 
     </div>
   );

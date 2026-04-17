@@ -213,7 +213,10 @@ export default function App() {
             {["mirror", "insights", "ledger", "security"].map(tab => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => {
+                  setActiveTab(tab);
+                  document.getElementById(tab)?.scrollIntoView({ behavior: "smooth" });
+                }}
                 style={{
                   background: "transparent",
                   border: "none",
@@ -259,11 +262,16 @@ export default function App() {
           </div>
         )}
 
-        <div style={{ minHeight: "60vh" }}>
-           {activeTab === "mirror" && (
-             <MirrorView metrics={metrics} transactions={transactions} />
-           )}
-           {activeTab === "insights" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "6rem" }}>
+           <div id="mirror" style={{ scrollMarginTop: "100px" }}>
+             <MirrorView 
+                metrics={metrics} 
+                transactions={transactions} 
+                onAddTransactions={addTransactions} 
+                onUpload={uploadStatement} 
+             />
+           </div>
+           <div id="insights" style={{ scrollMarginTop: "100px" }}>
              <ConstellationsView 
                 personality={personality} 
                 insights={insights} 
@@ -272,17 +280,16 @@ export default function App() {
                 onGenerate={generateAnalysis}
                 onRefine={refineInsights}
              />
-           )}
-           {activeTab === "ledger" && (
+           </div>
+           <div id="ledger" style={{ scrollMarginTop: "100px" }}>
              <LedgerView 
-                transactions={transactions} 
-                onSaveTransactions={saveTransactions} 
+                actions={actions} 
                 loading={loading} 
              />
-           )}
-           {activeTab === "security" && (
-             <SecurityView onDelete={deleteAllData} />
-           )}
+           </div>
+           <div id="security" style={{ scrollMarginTop: "100px" }}>
+             <SecurityView transactions={transactions} onDelete={deleteAllData} />
+           </div>
         </div>
       </main>
     </div>
