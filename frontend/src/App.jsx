@@ -10,7 +10,11 @@ import LedgerView from "./components/LedgerView.jsx";
 import SecurityView from "./components/SecurityView.jsx";
 
 export default function App() {
-  const [step, setStep] = useState(() => localStorage.getItem("financialMirrorSessionId") ? "app" : "landing");
+  const [step, setStep] = useState(() => {
+    const hash = window.location.hash.replace('#', '');
+    if (['landing', 'auth', 'onboarding', 'app'].includes(hash)) return hash;
+    return localStorage.getItem("financialMirrorSessionId") ? "app" : "landing";
+  });
   const [activeTab, setActiveTab] = useState("mirror"); 
   
   const [sessionId, setSessionId] = useState(() => localStorage.getItem("financialMirrorSessionId") || "");
@@ -28,11 +32,33 @@ export default function App() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    // Push the initial state so back-navigating always finds a valid state
+    window.history.replaceState({ step }, '', window.location.pathname + '#' + step);
+    
+    const handlePopState = (e) => {
+      if (e.state && e.state.step) {
+        setStep(e.state.step);
+      } else {
+        const hash = window.location.hash.replace('#', '');
+        if (['landing', 'auth', 'onboarding', 'app'].includes(hash)) setStep(hash);
+        else setStep(localStorage.getItem("financialMirrorSessionId") ? "app" : "landing");
+      }
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  const changeStep = (newStep) => {
+    setStep(newStep);
+    window.history.pushState({ step: newStep }, '', window.location.pathname + '#' + newStep);
+  };
+
+  useEffect(() => {
     if (!sessionId) return;
     refreshSession(sessionId).catch(() => {
       localStorage.removeItem("financialMirrorSessionId");
       setSessionId("");
-      setStep("landing");
+      changeStep("landing");
     });
   }, [sessionId]);
 
@@ -69,7 +95,7 @@ export default function App() {
       setSessionId(response.session_id);
       localStorage.setItem("financialMirrorSessionId", response.session_id);
       localStorage.setItem("financialMirrorProfile", JSON.stringify(nextProfile));
-      setStep("app");
+      changeStep("app");
     });
   }
 
@@ -151,16 +177,16 @@ export default function App() {
       setInsights(null);
       setActions(null);
       setNudge(null);
-      setStep("landing");
+      changeStep("landing");
     });
   }
 
   if (step === "landing") {
-    return <LandingPage onStart={() => setStep("onboarding")} onLogin={() => setStep("auth")} />;
+    return <LandingPage onStart={() => changeStep("onboarding")} onLogin={() => changeStep("auth")} />;
   }
 
   if (step === "auth") {
-    return <AuthPage onLogin={() => setStep("onboarding")} onBack={() => setStep("landing")} />;
+    return <AuthPage onLogin={() => changeStep("onboarding")} onBack={() => window.history.back()} />;
   }
 
   if (step === "onboarding") {
