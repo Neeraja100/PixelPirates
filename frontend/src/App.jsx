@@ -205,7 +205,7 @@ export default function App() {
                   transition: "all 0.2s ease"
                 }}
               >
-                {tab}
+                {{ mirror: "Analysis", insights: "Insights", ledger: "Actions", security: "Transaction" }[tab]}
               </button>
             ))}
           </div>
