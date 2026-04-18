@@ -2,7 +2,14 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.routes import analysis, auth, data, sessions
+# Load environment variables from .env file (local dev)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
+from app.routes import analysis, auth, data, sessions, stt
 from app.middleware.security import SecurityHeadersMiddleware, RateLimitMiddleware, PayloadSizeMiddleware
 
 app = FastAPI(
@@ -36,6 +43,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(stt.router)
 app.include_router(sessions.router)
 app.include_router(data.router)
 app.include_router(analysis.router)

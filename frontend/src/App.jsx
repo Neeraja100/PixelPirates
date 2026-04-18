@@ -17,7 +17,7 @@ export default function App() {
   const [metrics, setMetrics] = useState(null);
   const [personality, setPersonality] = useState(null);
   const [insights, setInsights] = useState(null);
-  const [actions, setActions] = useState(null);
+  const [actions, setActions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -37,6 +37,7 @@ export default function App() {
             api.metrics(savedSessionId).then(setMetrics).catch(() => {});
             api.personality(savedSessionId).then(setPersonality).catch(() => {});
             api.insights(savedSessionId).then(setInsights).catch(() => {});
+            api.actions(savedSessionId).then(r => setActions(r?.actions || [])).catch(() => {});
           }
           setStep("app");
         })
@@ -84,37 +85,42 @@ export default function App() {
       setMetrics(latestMetrics);
       api.personality(id).then(setPersonality).catch(() => {});
       api.insights(id).then(setInsights).catch(() => {});
+      api.actions(id).then(r => setActions(r?.actions || [])).catch(() => {});
     }
   }
 
   // Called from AuthPage after successful signin/signup  
-  function handleAuthSuccess(email) {
-    // Check if user already has a saved profile (returning user)
+  function handleAuthSuccess(user_id) {
     const savedProfile = localStorage.getItem("financialMirrorProfile");
-    const savedSessionId = localStorage.getItem("financialMirrorSessionId");
-    if (savedSessionId && savedProfile) {
-      // Try to resume their session
-      api.getSession(savedSessionId)
-        .then((session) => {
-          setSessionId(savedSessionId);
-          setProfile(JSON.parse(savedProfile));
-          setTransactions(session.transactions || []);
-          if ((session.transactions || []).length > 0) {
-            api.metrics(savedSessionId).then(setMetrics).catch(() => {});
-          }
-          changeStep("app");
-        })
-        .catch(() => {
-          changeStep("onboarding");
-        });
-    } else {
-      changeStep("onboarding");
-    }
+    
+    // Resume session immediately using user_id as the fixed session_id!
+    api.getSession(user_id)
+      .then((session) => {
+        setSessionId(user_id);
+        localStorage.setItem("financialMirrorSessionId", user_id);
+        localStorage.setItem("financialMirrorProfile", JSON.stringify(session.profile));
+        setProfile(session.profile);
+        setTransactions(session.transactions || []);
+        if ((session.transactions || []).length > 0) {
+          api.metrics(user_id).then(setMetrics).catch(() => {});
+          api.personality(user_id).then(setPersonality).catch(() => {});
+          api.insights(user_id).then(setInsights).catch(() => {});
+          api.actions(user_id).then(r => setActions(r?.actions || [])).catch(() => {});
+        }
+        changeStep("app");
+      })
+      .catch(() => {
+        // No session found for this user. Time for onboarding.
+        setSessionId(user_id);
+        localStorage.setItem("financialMirrorSessionId", user_id);
+        changeStep("onboarding");
+      });
   }
 
   async function startSession(nextProfile) {
     await run(async () => {
-      const response = await api.startSession(nextProfile);
+      const forcedSessionId = localStorage.getItem("financialMirrorSessionId") || sessionId;
+      const response = await api.startSession(nextProfile, forcedSessionId);
       setProfile(nextProfile);
       setSessionId(response.session_id);
       localStorage.setItem("financialMirrorSessionId", response.session_id);
@@ -130,6 +136,8 @@ export default function App() {
       setTransactions(response.transactions);
       const m = await api.metrics(sessionId);
       setMetrics(m);
+      // auto-generate actions immediately after adding data
+      api.actions(sessionId).then(r => setActions(r?.actions || [])).catch(() => {});
     });
   }
 
@@ -138,6 +146,7 @@ export default function App() {
       const response = await api.parseText(sessionId, text);
       setTransactions(response.transactions);
       setMetrics(await api.metrics(sessionId));
+      api.actions(sessionId).then(r => setActions(r?.actions || [])).catch(() => {});
     });
   }
 
@@ -146,6 +155,7 @@ export default function App() {
       const response = await api.uploadStatement(sessionId, file);
       setTransactions(response.transactions);
       setMetrics(await api.metrics(sessionId));
+      api.actions(sessionId).then(r => setActions(r?.actions || [])).catch(() => {});
     });
   }
 

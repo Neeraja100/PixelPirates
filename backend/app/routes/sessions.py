@@ -9,10 +9,10 @@ router = APIRouter(tags=["sessions"])
 
 @router.post("/sessions/start", response_model=SessionStartResponse)
 def start_session(payload: SessionStartRequest):
-    session_id = session_store.create(payload.profile, payload.auto_clear_on_refresh)
+    session_id = session_store.create(payload.profile, payload.auto_clear_on_refresh, payload.session_id)
     return {
         "session_id": session_id,
-        "message": "Session started. Financial data is stored only in memory for this active session.",
+        "message": "Session started. Financial data securely stored locally.",
     }
 
 

@@ -58,10 +58,10 @@ async function request(path, options = {}) {
 }
 
 export const api = {
-  startSession(profile) {
+  startSession(profile, sessionId) {
     return request("/sessions/start", {
       method: "POST",
-      body: JSON.stringify({ profile, auto_clear_on_refresh: true }),
+      body: JSON.stringify({ profile, auto_clear_on_refresh: true, session_id: sessionId }),
     });
   },
   getSession(sessionId) {

@@ -1,134 +1,177 @@
 import json
 import os
 
-from openai import OpenAI
-from pydantic import ValidationError
+# Load .env file if present (for local development)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 from app.utils.analyzer import build_metrics, generate_actions, generate_insights, generate_personality
 
-_client = None
 
-def get_openai_client():
-    global _client
-    if _client is not None:
-        return _client
-    api_key = os.getenv("OPENAI_API_KEY")
-    if api_key:
-        _client = OpenAI(api_key=api_key)
-    return _client
+# ─── Gemini client (lazy-loaded) ──────────────────────────────────────────────
+
+_gemini_model = None
+
+def _get_gemini():
+    global _gemini_model
+    if _gemini_model is not None:
+        return _gemini_model
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key or api_key == "PASTE_YOUR_NEW_KEY_HERE":
+        return None
+    try:
+        import google.generativeai as genai
+        genai.configure(api_key=api_key)
+        _gemini_model = genai.GenerativeModel(
+            model_name="gemini-1.5-flash",
+            generation_config={"response_mime_type": "application/json"},
+        )
+        return _gemini_model
+    except Exception:
+        return None
+
+
+def _ask_gemini(prompt: str) -> dict | None:
+    """Send prompt to Gemini, parse JSON response. Returns None on any failure."""
+    model = _get_gemini()
+    if not model:
+        return None
+    try:
+        response = model.generate_content(prompt)
+        text = response.text.strip()
+        # Strip markdown code fences if present
+        if text.startswith("```"):
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+        return json.loads(text)
+    except Exception:
+        return None
+
+
+# ─── Safe aggregate builder (never sends raw transactions to LLM) ─────────────
+
+def _safe_metrics(session: dict) -> dict:
+    m = build_metrics(session)
+    return {
+        "income": round(m["income"], 2),
+        "expenses": round(m["expenses"], 2),
+        "savings": round(m["savings"], 2),
+        "savings_rate_pct": round(m["savings_rate"] * 100, 1),
+        "discretionary_ratio_pct": round(m["discretionary_ratio"] * 100, 1),
+        "expense_ratio_pct": round(m["expense_ratio"] * 100, 1),
+        "top_categories": list(m["by_category"].keys())[:4],
+        "weekend_spend": round(m["weekend_spend"], 2),
+        "weekday_spend": round(m["weekday_spend"], 2),
+        "health_score": m["score"],
+    }
+
+
+# ─── Personality ──────────────────────────────────────────────────────────────
 
 def generate_personality_response(session: dict) -> dict:
-    client = get_openai_client()
-    if client:
-        try:
-            metrics = build_metrics(session)
-            safe_payload = {
-                "income": metrics["income"],
-                "expenses": metrics["expenses"],
-                "savings_rate": metrics["savings_rate"],
-                "discretionary_ratio": metrics["discretionary_ratio"],
-                "expense_ratio": metrics["expense_ratio"],
-                "top_categories": [k for k, v in list(metrics["by_category"].items())[:3]]
-            }
-            prompt = (
-                "You are an expert financial psychologist. Based on this anonymized aggregate data: " + json.dumps(safe_payload) + " "
-                "Generate a financial personality profile. Output strictly as JSON formatting: "
-                '{"tag": "string (A catchy title like The Comfort Spender or Balanced Optimizer)", '
-                '"summary": "string (2-3 sentences max explaining their archetypal spending behavior)", '
-                '"swot": {"strengths": ["string", "string"], "weaknesses": ["string"], "opportunities": ["string"], "threats": ["string"]}}'
-            )
-            completion = client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "system", "content": "You output JSON exclusively."}, {"role": "user", "content": prompt}],
-                response_format={"type": "json_object"}
-            )
-            data = json.loads(completion.choices[0].message.content)
-            data["score"] = metrics["score"]
-            return data
-        except Exception:
-            pass
-    return generate_personality(session)
+    metrics = build_metrics(session)
+    payload = _safe_metrics(session)
+
+    prompt = (
+        "You are an expert financial psychologist. "
+        "Given this anonymized aggregate spending profile (no personal data): "
+        + json.dumps(payload)
+        + "\n\nGenerate a financial personality profile strictly as JSON:\n"
+        '{\n'
+        '  "tag": "A catchy 2-4 word archetype title like The Comfort Spender or The Strategic Optimizer",\n'
+        '  "summary": "2-3 sentences describing their archetypal financial behavior pattern",\n'
+        '  "swot": {\n'
+        '    "strengths": ["strength 1", "strength 2"],\n'
+        '    "weaknesses": ["weakness 1", "weakness 2"],\n'
+        '    "opportunities": ["opportunity 1"],\n'
+        '    "threats": ["threat 1"]\n'
+        '  }\n'
+        '}'
+    )
+
+    data = _ask_gemini(prompt)
+    if data and "tag" in data:
+        data["score"] = metrics["score"]
+        data["_source"] = "gemini"
+        return data
+
+    # Deterministic fallback
+    result = generate_personality(session)
+    result["_source"] = "deterministic"
+    return result
+
+
+# ─── Insights ─────────────────────────────────────────────────────────────────
 
 def generate_insight_response(session: dict) -> dict:
-    client = get_openai_client()
-    if client:
-        try:
-            metrics = build_metrics(session)
-            # NEVER SEND RAW DATA, purely aggregate scalars
-            safe_payload = {
-                "income": metrics["income"],
-                "expenses": metrics["expenses"],
-                "savings": metrics["savings"],
-                "savings_rate": metrics["savings_rate"],
-                "discretionary_ratio": metrics["discretionary_ratio"],
-                "top_categories": [k for k, v in list(metrics["by_category"].items())[:3]],
-                "weekend_spend": metrics["weekend_spend"],
-                "weekday_spend": metrics["weekday_spend"]
-            }
-            
-            prompt = (
-                "You are a strict financial analyst. Based on this aggregated data: " + json.dumps(safe_payload) + " "
-                "Generate exactly: "
-                "1. 2 to 3 data-driven insights. "
-                "2. 1 behavioral observation. "
-                "3. 1 actionable suggestion. "
-                "Output as a JSON object strictly formatting exactly this schema: "
-                '{"insights": ["string", "string", "string"], "behavioral_observation": "string", "suggestion": "string"}'
-            )
+    payload = _safe_metrics(session)
 
-            completion = client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "system", "content": "You output JSON exclusively."}, {"role": "user", "content": prompt}],
-                response_format={"type": "json_object"}
-            )
-            data = json.loads(completion.choices[0].message.content)
-            
-            insights_val = data.get("insights", [])
-            behavior_val = data.get("behavioral_observation", "")
-            if behavior_val:
-                insights_val.append("Behavioral Observation: " + behavior_val)
-            sugg_val = data.get("suggestion", "")
-            if sugg_val:
-                insights_val.append("Suggestion: " + sugg_val)
-                
-            return {"insights": insights_val}
-            
-        except Exception:
-            pass # Fall back safely to reliable deterministic module
-            
-    return generate_insights(session)
+    prompt = (
+        "You are a strict financial analyst. "
+        "Based on this anonymized aggregate data (no raw transactions): "
+        + json.dumps(payload)
+        + "\n\nGenerate insights strictly as JSON:\n"
+        '{\n'
+        '  "insights": [\n'
+        '    "data-driven insight 1 with specific numbers from the data",\n'
+        '    "data-driven insight 2 with specific numbers",\n'
+        '    "behavioral observation about spending pattern"\n'
+        '  ],\n'
+        '  "suggestion": "one highly specific actionable suggestion"\n'
+        '}'
+    )
 
-def generate_action_response(session: dict) -> list[str]:
-    client = get_openai_client()
-    if client:
-        try:
-            metrics = build_metrics(session)
-            safe_payload = {
-                "income": metrics["income"],
-                "savings": metrics["savings"],
-                "savings_rate": metrics["savings_rate"],
-                "top_categories": {k: v for k, v in list(metrics["by_category"].items())[:3]},
-                "discretionary": metrics["discretionary"]
-            }
-            prompt = (
-                "You are a strict financial advisor. Based on this anonymized data: " + json.dumps(safe_payload) + " "
-                "Generate exactly 3 extremely actionable financial steps the user should take immediately. "
-                "Output strictly as a JSON object: "
-                '{"actions": ["string", "string", "string"]}'
-            )
-            completion = client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "system", "content": "You output JSON exclusively."}, {"role": "user", "content": prompt}],
-                response_format={"type": "json_object"}
-            )
-            data = json.loads(completion.choices[0].message.content)
-            return data.get("actions", [])[:3]
-        except Exception:
-            pass
+    data = _ask_gemini(prompt)
+    if data and "insights" in data:
+        result = list(data["insights"])
+        if data.get("suggestion"):
+            result.append("💡 " + data["suggestion"])
+        return {"insights": result, "_source": "gemini"}
+
+    # Deterministic fallback
+    result = generate_insights(session)
+    result["_source"] = "deterministic"
+    return result
+
+
+# ─── Actions ──────────────────────────────────────────────────────────────────
+
+def generate_action_response(session: dict) -> list:
+    payload = _safe_metrics(session)
+
+    prompt = (
+        "You are a no-nonsense financial advisor. "
+        "Based on this anonymized aggregate profile: "
+        + json.dumps(payload)
+        + "\n\nGenerate exactly 3 immediately actionable financial steps. "
+        "Each action must have a short headline ('problem') and a detailed description ('action') with specific numbers/rupees. "
+        "Output strictly as JSON:\n"
+        '{"actions": [{"problem": "Reduce Weekend Spend", "action": "Cap your weekend outflow to Rs 2000..."}, ...]}'
+    )
+
+    data = _ask_gemini(prompt)
+    if data and "actions" in data:
+        # Validate format
+        valid_actions = [a for a in data["actions"] if isinstance(a, dict) and "problem" in a and "action" in a]
+        if len(valid_actions) >= 1:
+            return valid_actions[:3]
+
+    # Deterministic fallback
     return generate_actions(session)
 
+
+# ─── Status ───────────────────────────────────────────────────────────────────
+
 def ai_provider_status() -> dict:
+    gemini_key = os.getenv("GEMINI_API_KEY", "")
+    gemini_active = bool(gemini_key and gemini_key != "PASTE_YOUR_NEW_KEY_HERE")
     return {
+        "gemini_configured": gemini_active,
         "openai_configured": bool(os.getenv("OPENAI_API_KEY")),
-        "default_mode": "deterministic local analysis - fallback active",
+        "active_provider": "gemini" if gemini_active else "deterministic",
+        "model": "gemini-1.5-flash" if gemini_active else "rule-based",
     }

@@ -28,7 +28,8 @@ export default function AuthPage({ onLogin, onBack }) {
       localStorage.setItem("financialMirrorAuthToken", resp.token);
       localStorage.setItem("financialMirrorUserEmail", resp.email);
       localStorage.setItem("financialMirrorUserName", resp.name);
-      onLogin(resp.email);
+      localStorage.setItem("financialMirrorUserId", resp.user_id);
+      onLogin(resp.user_id);
     } catch (err) {
       setError(err.message || "Authentication failed. Please try again.");
     } finally {

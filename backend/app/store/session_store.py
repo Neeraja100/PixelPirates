@@ -73,8 +73,8 @@ class SessionStore:
         finally:
             db.close()
 
-    def create(self, profile: UserProfile, auto_clear_on_refresh: bool = True) -> str:
-        session_id = str(uuid4())
+    def create(self, profile: UserProfile, auto_clear_on_refresh: bool = True, session_id: str | None = None) -> str:
+        session_id = session_id or str(uuid4())
         profile_dict = profile.model_dump()
         self._sessions[session_id] = {
             "profile": profile_dict,

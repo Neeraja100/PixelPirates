@@ -175,35 +175,111 @@ function ManualModal({ close, onAddTransactions, loading }) {
 
 function VoiceModal({ close, onParseText, loading }) {
   const [text, setText] = useState('');
+  const [listening, setListening] = useState(false);
+  const [sttError, setSttError] = useState('');
+  const recognitionRef = React.useRef(null);
+
+  // Check if browser supports Web Speech API
+  const hasSpeechAPI = typeof window !== 'undefined' &&
+    (window.SpeechRecognition || window.webkitSpeechRecognition);
+
+  const startListening = () => {
+    setSttError('');
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-IN';      // Indian English — handles Rs, rupees, etc.
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results)
+        .map(r => r[0].transcript)
+        .join(' ');
+      setText(prev => prev ? prev + ' ' + transcript : transcript);
+      setListening(false);
+    };
+
+    recognition.onerror = (event) => {
+      setSttError('Could not understand audio. Please try again or type manually.');
+      setListening(false);
+    };
+
+    recognition.onend = () => setListening(false);
+
+    recognition.start();
+    recognitionRef.current = recognition;
+    setListening(true);
+  };
+
+  const stopListening = () => {
+    recognitionRef.current?.stop();
+    setListening(false);
+  };
+
   return (
     <div className="p-8 flex flex-col items-center text-center">
-      <h2 className="text-2xl font-bold font-manrope text-white mb-2">Speak or Type</h2>
-      <p className="text-[#988ca0] text-sm mb-8">"Spent 500 rupees on Netflix yesterday"</p>
-      
-      <div className="relative mb-8">
-        <div className="absolute inset-0 bg-blue-500 rounded-full blur-[40px] opacity-20 animate-pulse" />
-        <button className="relative w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-[0_0_30px_rgba(8,12,255,0.4)]">
-          <Mic size={32} className="text-white" />
-        </button>
-      </div>
+      <h2 className="text-2xl font-bold font-manrope text-white mb-1">Voice Entry</h2>
+      <p className="text-[#988ca0] text-sm mb-6">
+        Say something like <em>"Spent 500 on Netflix yesterday"</em>
+      </p>
 
-      <textarea 
-        placeholder="Type here if you prefer..." 
-        value={text} 
+      {hasSpeechAPI ? (
+        <>
+          {/* Mic button */}
+          <div className="relative mb-4">
+            {listening && (
+              <div className="absolute inset-0 bg-red-500 rounded-full blur-[40px] opacity-40 animate-pulse" />
+            )}
+            <button
+              onClick={listening ? stopListening : startListening}
+              disabled={loading}
+              className={`relative w-20 h-20 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 ${
+                listening
+                  ? 'bg-gradient-to-br from-red-500 to-red-700 shadow-[0_0_30px_rgba(239,68,68,0.5)] scale-110'
+                  : 'bg-gradient-to-br from-blue-500 to-purple-600 shadow-[0_0_30px_rgba(8,12,255,0.4)] hover:scale-110'
+              }`}
+            >
+              {listening
+                ? <div className="w-5 h-5 bg-white rounded-sm" />
+                : <Mic size={32} className="text-white" />
+              }
+            </button>
+          </div>
+          <p className="text-xs font-inter text-[#988ca0] mb-4">
+            {listening ? '🔴 Listening... tap mic to stop' : 'Tap mic and speak'}
+          </p>
+        </>
+      ) : (
+        <div className="mb-4 px-4 py-3 rounded-xl bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 font-inter text-xs text-left w-full">
+          ⚠️ Your browser doesn't support voice input. Please use Chrome or Edge, or type manually below.
+        </div>
+      )}
+
+      {sttError && (
+        <div className="w-full mb-4 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 font-inter text-xs text-left">
+          {sttError}
+        </div>
+      )}
+
+      <textarea
+        placeholder={hasSpeechAPI ? "Transcript appears here — edit before confirming..." : "Type your transaction here..."}
+        value={text}
         onChange={e => setText(e.target.value)}
-        className="field w-full min-h-[100px] mb-6 resize-none"
+        className="field w-full min-h-[90px] mb-5 resize-none text-sm"
       />
-      
-      <button 
-        disabled={loading || !text} 
-        onClick={async () => { await onParseText(text); close(); }} 
+
+      <button
+        disabled={loading || !text.trim()}
+        onClick={async () => { await onParseText(text); close(); }}
         className="btn-primary w-full justify-center"
       >
-        {loading ? 'Analyzing...' : 'Confirm Entry'}
+        {loading ? 'Logging...' : 'Confirm Entry →'}
       </button>
     </div>
   );
 }
+
+
 
 function CsvModal({ close, onUploadStatement, loading }) {
   const [file, setFile] = useState(null);

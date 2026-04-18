@@ -16,6 +16,7 @@ class UserProfile(BaseModel):
 class SessionStartRequest(BaseModel):
     profile: UserProfile
     auto_clear_on_refresh: bool = True
+    session_id: str | None = None
 
 
 class SessionStartResponse(BaseModel):
@@ -59,7 +60,7 @@ class InsightsResponse(BaseModel):
 
 
 class ActionsResponse(BaseModel):
-    actions: list[str]
+    actions: list[dict]
 
 
 class FullAnalysisResponse(BaseModel):
@@ -67,7 +68,7 @@ class FullAnalysisResponse(BaseModel):
     summary: str
     swot: dict[str, list[str]]
     insights: list[str]
-    actions: list[str]
+    actions: list[dict]
 
 
 class NudgeResponse(BaseModel):
