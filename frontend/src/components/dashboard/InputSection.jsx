@@ -120,7 +120,26 @@ function Modal({ children, close }) {
 
 /* Modals Internals */
 function ManualModal({ close, onAddTransactions, loading }) {
-  const [form, setForm] = useState({ description: '', amount: '', date: new Date().toISOString().split('T')[0], is_expense: true });
+  const [form, setForm] = useState({ 
+    description: '', 
+    amount: '', 
+    date: new Date().toISOString().split('T')[0], 
+    is_expense: true,
+    category: ''
+  });
+
+  const predefinedCategories = [
+    "Food & Dining",
+    "Transportation",
+    "Bills & Utilities",
+    "Entertainment",
+    "Shopping",
+    "Health & Fitness",
+    "Travel",
+    "Education",
+    "Gifts & Donations",
+    "Other"
+  ];
 
   const submit = async (e) => {
     e.preventDefault();
@@ -134,7 +153,8 @@ function ManualModal({ close, onAddTransactions, loading }) {
       amount: finalAmount,
       date: form.date,
       vendor: form.description,
-      is_expense: isExpense
+      is_expense: isExpense,
+      category: form.category || "Other"
     };
     await onAddTransactions([transaction]);
     close();
@@ -144,19 +164,8 @@ function ManualModal({ close, onAddTransactions, loading }) {
     <div className="p-8">
       <h2 className="text-2xl font-bold font-manrope text-white mb-6">Manual Entry</h2>
       <form onSubmit={submit} className="flex flex-col gap-4">
-        <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-semibold text-[#988ca0] uppercase tracking-wider">Amount</span>
-          <input type="number" required placeholder="0.00" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} className="field text-xl" />
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-semibold text-[#988ca0] uppercase tracking-wider">Description (Vendor)</span>
-          <input type="text" required placeholder="Coffee, Rent, etc." value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="field" />
-        </label>
+        
         <div className="grid grid-cols-2 gap-4">
-          <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-semibold text-[#988ca0] uppercase tracking-wider">Date</span>
-            <input type="date" required value={form.date} onChange={e => setForm({...form, date: e.target.value})} className="field" />
-          </label>
           <label className="flex flex-col gap-1.5">
             <span className="text-xs font-semibold text-[#988ca0] uppercase tracking-wider">Type</span>
             <select value={form.is_expense} onChange={e => setForm({...form, is_expense: e.target.value === 'true'})} className="field appearance-none">
@@ -164,7 +173,41 @@ function ManualModal({ close, onAddTransactions, loading }) {
               <option value="false">Income</option>
             </select>
           </label>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-xs font-semibold text-[#988ca0] uppercase tracking-wider">Amount</span>
+            <input type="number" required placeholder="0.00" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} className="field text-xl font-bold" />
+          </label>
         </div>
+
+        <label className="flex flex-col gap-1.5">
+          <span className="text-xs font-semibold text-[#988ca0] uppercase tracking-wider">Description</span>
+          <input type="text" required placeholder="Coffee, Rent, etc." value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="field" />
+        </label>
+
+        <label className="flex flex-col gap-1.5">
+          <span className="text-xs font-semibold text-[#988ca0] uppercase tracking-wider flex items-center justify-between">
+            Category <span className="text-xs text-[#988ca0]/50 lowercase">select or type</span>
+          </span>
+          <input 
+            type="text" 
+            list="txn-categories" 
+            placeholder="Food, Travel, etc." 
+            value={form.category} 
+            onChange={e => setForm({...form, category: e.target.value})} 
+            className="field" 
+          />
+          <datalist id="txn-categories">
+            {predefinedCategories.map((cat, i) => (
+              <option key={i} value={cat} />
+            ))}
+          </datalist>
+        </label>
+
+        <label className="flex flex-col gap-1.5">
+          <span className="text-xs font-semibold text-[#988ca0] uppercase tracking-wider">Date</span>
+          <input type="date" required value={form.date} onChange={e => setForm({...form, date: e.target.value})} className="field text-[#988ca0]" />
+        </label>
+
         <button type="submit" disabled={loading} className="mt-4 btn-primary w-full justify-center">
           {loading ? 'Adding...' : 'Add Transaction'}
         </button>

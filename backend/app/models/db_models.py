@@ -15,6 +15,8 @@ class UserModel(Base):
     hashed_password = Column(String, nullable=False)
     name = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    last_login = Column(DateTime(timezone=True), nullable=True)
+    streak_count = Column(Float, default=0) # using Float or Integer is fine, actually SQLite doesn't strictly enforce but let's use Float or INT. Let's import Integer and use Integer.
 
 
 class SessionModel(Base):

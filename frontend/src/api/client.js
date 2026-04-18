@@ -39,7 +39,7 @@ async function request(path, options = {}) {
   if (!response.ok) {
     // Mask generic backend errors for safety, expose only safe client-facing ones
     let errorMsg = "Our servers encountered an issue. Please try again.";
-    if ([400, 413, 429].includes(response.status)) {
+    if ([400, 401, 403, 413, 429].includes(response.status)) {
         errorMsg = payload.detail || "Invalid request or payload too large.";
     } else if (response.status === 422) {
         // FastAPI validation errors (422) return an array in `detail`
@@ -139,9 +139,28 @@ export const api = {
   getMe(token) {
     return request(`/auth/me?token=${encodeURIComponent(token)}`);
   },
+  sendOtp(phone) {
+    return request("/auth/send-otp", {
+      method: "POST",
+      body: JSON.stringify({ phone }),
+    });
+  },
+  verifyOtp(phone, otp) {
+    return request("/auth/verify-otp", {
+      method: "POST",
+      body: JSON.stringify({ phone, otp }),
+    });
+  },
+  chat(sessionId, message, history = []) {
+    return request("/chat", {
+      method: "POST",
+      body: JSON.stringify({ session_id: sessionId, message, history }),
+    });
+  },
   deleteAll(sessionId) {
     return request(`/sessions/${sessionId}`, {
       method: "DELETE",
     });
   },
 };
+

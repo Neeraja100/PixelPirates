@@ -50,8 +50,8 @@ export default function TransactionsSection({ transactions }) {
                   <div className="text-xs text-[#988ca0] font-inter mt-1 block md:hidden">{tx.date}</div>
                 </div>
                 
-                <div className={`col-span-1 md:col-span-3 font-manrope font-bold text-xl md:text-right ${tx.amount < 0 ? 'text-white' : 'text-green-400'}`}>
-                  {tx.amount < 0 ? '-' : '+'}₹{Math.abs(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                <div className={`col-span-1 md:col-span-3 font-manrope font-bold text-xl md:text-right ${tx.type === 'expense' || tx.is_expense ? 'text-white' : 'text-green-400'}`}>
+                  {tx.type === 'expense' || tx.is_expense ? '-' : '+'}₹{Math.abs(tx.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
                 
                 <div className="col-span-2 font-inter text-sm text-[#988ca0] text-center hidden md:block">

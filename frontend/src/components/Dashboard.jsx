@@ -7,6 +7,7 @@ import AnalyticsSection from './dashboard/AnalyticsSection';
 import InsightsSection from './dashboard/InsightsSection';
 import ActionsSection from './dashboard/ActionsSection';
 import TransactionsSection from './dashboard/TransactionsSection';
+import Chatbot from './dashboard/Chatbot';
 
 // ── Cursor-aware animated background canvas ───────────────────────────────────
 function AmbientCanvas() {
@@ -136,6 +137,7 @@ function AmbientCanvas() {
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 export default function Dashboard({
+  streak = 1,
   metrics,
   transactions,
   personality,
@@ -252,6 +254,12 @@ export default function Dashboard({
 
         {/* Right controls */}
         <div className="flex items-center gap-3">
+          
+          {/* Streak Counter */}
+          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/10 backdrop-blur-md text-sm font-manrope font-bold transition-colors ${streak > 1 ? 'bg-orange-500/20 text-orange-400 border-orange-500/30 drop-shadow-[0_0_8px_rgba(255,165,0,0.5)]' : 'bg-white/5 text-[#988ca0]'}`}>
+            🔥 <span className="hidden sm:inline">{streak} Day Streak</span><span className="sm:hidden">{streak}</span>
+          </div>
+
           {/* Manage Data dropdown */}
           <div className="relative">
             <button
@@ -275,6 +283,16 @@ export default function Dashboard({
                     className="w-full text-left px-4 py-3 rounded-lg text-red-400 hover:bg-red-500/10 font-inter text-sm transition-colors flex items-center gap-2"
                   >
                     <X size={14} /> Delete Data Permanently
+                  </button>
+                  <button
+                    onClick={() => { 
+                      setShowManageMenu(false); 
+                      fetch('http://localhost:8000/admin/trigger-whatsapp').catch(()=>""); 
+                      alert('WhatsApp Job Triggered! Check your backend terminal for the simulated SMS logs.');
+                    }}
+                    className="w-full text-left px-4 py-3 rounded-lg text-emerald-400 hover:bg-emerald-500/10 font-inter text-sm transition-colors flex items-center gap-2 border-t border-white/5"
+                  >
+                    <MessageSquare size={14} /> Simulate WhatsApp Campaign
                   </button>
                 </motion.div>
               )}
@@ -453,6 +471,8 @@ export default function Dashboard({
           </motion.div>
         )}
       </AnimatePresence>
+
+      <Chatbot sessionId={localStorage.getItem("financialMirrorSessionId") || ""} />
     </div>
   );
 }

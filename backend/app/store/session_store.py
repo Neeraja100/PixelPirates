@@ -76,9 +76,14 @@ class SessionStore:
     def create(self, profile: UserProfile, auto_clear_on_refresh: bool = True, session_id: str | None = None) -> str:
         session_id = session_id or str(uuid4())
         profile_dict = profile.model_dump()
+        
+        existing_txns = []
+        if session_id in self._sessions:
+            existing_txns = self._sessions[session_id].get("transactions", [])
+            
         self._sessions[session_id] = {
             "profile": profile_dict,
-            "transactions": [],
+            "transactions": existing_txns,
             "created_at": datetime.now(timezone.utc).isoformat(),
             "analysis_calls": 0,
             "insight_calls": 0,

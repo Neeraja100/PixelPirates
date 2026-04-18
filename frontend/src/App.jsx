@@ -107,7 +107,8 @@ export default function App() {
           api.insights(user_id).then(setInsights).catch(() => {});
           api.actions(user_id).then(r => setActions(r?.actions || [])).catch(() => {});
         }
-        changeStep("app");
+        // FORCED HACKATHON DEMO BYPASS: Show Onboarding/OTP wall for everyone
+        changeStep("onboarding");
       })
       .catch(() => {
         // No session found for this user. Time for onboarding.
@@ -235,9 +236,12 @@ export default function App() {
     return <OnboardingForm onSubmit={startSession} loading={loading} />;
   }
 
+  const streak = Number(localStorage.getItem("financialMirrorStreak")) || 1;
+
   // Dashboard
   return (
     <Dashboard
+      streak={streak}
       metrics={metrics}
       transactions={transactions}
       personality={personality}

@@ -75,3 +75,14 @@ class NudgeResponse(BaseModel):
     type: str
     message: str
     whatsapp_ready: str
+
+
+class ChatRequest(BaseModel):
+    session_id: str
+    message: str
+    history: list[dict] = []  # Allows contextual convo
+
+
+class ChatResponse(BaseModel):
+    response: str
+

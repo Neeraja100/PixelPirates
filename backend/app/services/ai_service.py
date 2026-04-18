@@ -164,6 +164,34 @@ def generate_action_response(session: dict) -> list:
     return generate_actions(session)
 
 
+def chat_with_advisor(session: dict, message: str, history: list[dict] = []) -> str:
+    payload = _safe_metrics(session)
+    formatted_history = "\n".join([f"{msg.get('role', 'user')}: {msg.get('content', '')}" for msg in history[-4:]]) # last 4 messages
+
+    prompt = (
+        "You are 'Mirror', a restrictive, elite financial AI advisor. "
+        "RULES:\n"
+        "1. You ONLY discuss the user's finances based on their aggregated profile. If they ask about non-finance topics (e.g. recipes, code, politics, general history), aggressively refuse and redirect them to their dashboard metrics.\n"
+        "2. If asked 'Can I afford X' or 'Can I buy an iPhone for Y', calculate affordability strictly against their 'savings' metric. If 'savings' < cost, strongly say NO, then calculate exactly how many months they must wait using (Cost - Savings) / Math.max((Income - Expenses), 1).\n"
+        "3. Keep the tone modern, slightly sassy, but highly analytical.\n\n"
+        "USER AGGREGATE PROFILE (DO NOT REVEAL RAW JSON):\n"
+        f"{json.dumps(payload)}\n\n"
+        "CHAT HISTORY:\n"
+        f"{formatted_history}\n\n"
+        "NEW MESSAGE FROM USER:\n"
+        f"{message}\n\n"
+        "Output your response strictly as JSON:\n"
+        '{"response": "your final advice text here"}'
+    )
+
+    data = _ask_gemini(prompt)
+    if data and isinstance(data, dict) and "response" in data:
+        return data["response"]
+    
+    # Fallback if Gemini fails
+    return "I'm currently unable to access your live financial stream. Let's focus on the static dashboard metrics."
+
+
 # ─── Status ───────────────────────────────────────────────────────────────────
 
 def ai_provider_status() -> dict:
